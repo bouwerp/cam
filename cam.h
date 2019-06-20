@@ -2,12 +2,12 @@
 // Created by Pieter Bouwer on 2019-04-30.
 //
 
-#ifndef CAM_H
-#define CAM_H
-
 #ifdef __cplusplus
 extern "C"{
 #endif
+
+#ifndef CAM_H
+#define CAM_H
 
 #include <stdio.h>
 #include <stdbool.h>
