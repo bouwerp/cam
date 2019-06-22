@@ -2360,8 +2360,6 @@ int wait_for_next_frame(CAM_STATE *state, int *frame) {
  * @return
  */
 MMAL_STATUS_T capture_still(CAM_STATE *state, CAM_STILL_CB still_cb) {
-    state->callback_data.mutex = 1;
-
     int frame, keep_looping = 1;
     MMAL_STATUS_T status;
 
@@ -2468,7 +2466,6 @@ MMAL_STATUS_T capture_still(CAM_STATE *state, CAM_STILL_CB still_cb) {
     } // end for (frame)
 
     vcos_semaphore_delete(&state->callback_data.complete_semaphore);
-    state->callback_data.capture_in_progress = 0;
 }
 
 /**
