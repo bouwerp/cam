@@ -166,7 +166,6 @@ typedef struct {
     uint8_t *_image_data;
     long _image_data_length;
     // final image data
-    pthread_mutex_t mutex;
     int capture_in_progress;
     uint8_t *image_data;
     long image_data_length;
@@ -238,6 +237,7 @@ typedef struct
 /** Structure containing all state information for the current run
  */
 struct CAM_STATE_S {
+    pthread_mutex_t mutex;
     CAM_COMMONSETTINGS_PARAMETERS common_settings;     /// Common settings
     int timeout;                        /// Time taken before frame is grabbed and app then shuts down. Units are milliseconds
     MMAL_FOURCC_T encoding;             /// Requested codec video encoding (MJPEG or H264)
