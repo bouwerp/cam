@@ -162,7 +162,12 @@ typedef struct {
     char header_bytes[29];
     int header_wptr;
     int flush_buffers;
-    // store the full image data
+    // temporary image data
+    uint8_t *_image_data;
+    long _image_data_length;
+    // final image data
+    pthread_mutex_t mutex;
+    int capture_in_progress;
     uint8_t *image_data;
     long image_data_length;
 } PORT_USERDATA;

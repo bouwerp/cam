@@ -2360,6 +2360,8 @@ int wait_for_next_frame(CAM_STATE *state, int *frame) {
  * @return
  */
 MMAL_STATUS_T capture_still(CAM_STATE *state, CAM_STILL_CB still_cb) {
+    state->callback_data.mutex = 1;
+
     int frame, keep_looping = 1;
     MMAL_STATUS_T status;
 
@@ -2466,6 +2468,7 @@ MMAL_STATUS_T capture_still(CAM_STATE *state, CAM_STILL_CB still_cb) {
     } // end for (frame)
 
     vcos_semaphore_delete(&state->callback_data.complete_semaphore);
+    state->callback_data.capture_in_progress = 0;
 }
 
 /**
@@ -2554,6 +2557,8 @@ MMAL_STATUS_T init_still(CAM_STATE *state) {
     PORT_USERDATA callback_data;
     callback_data.image_data = NULL;
     callback_data.image_data_length = 0;
+    callback_data._image_data = NULL;
+    callback_data._image_data_length = 0;
 
     if (state->common_settings.verbose)
         vcos_log_info( "Starting component connection stage\n");
@@ -2730,17 +2735,17 @@ void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buff
         {
             mmal_buffer_header_mem_lock(buffer);
 
-            if (pData->image_data == NULL) {
+            if (pData->_image_data == NULL) {
                 // start a new image
-                pData->image_data = malloc(sizeof(uint8_t) * buffer->length);
-                memcpy(pData->image_data, buffer->data, buffer->length);
-                pData->image_data_length = buffer->length;
+                pData->_image_data = malloc(sizeof(uint8_t) * buffer->length);
+                memcpy(pData->_image_data, buffer->data, buffer->length);
+                pData->_image_data_length = buffer->length;
             } else {
                 // continue building the current image
-                pData->image_data = realloc(pData->image_data,
-                        sizeof(uint8_t) * (buffer->length + pData->image_data_length));
-                memcpy(&(pData->image_data)[pData->image_data_length], buffer->data, buffer->length);
-                pData->image_data_length = buffer->length + pData->image_data_length;
+                pData->_image_data = realloc(pData->_image_data,
+                        sizeof(uint8_t) * (buffer->length + pData->_image_data_length));
+                memcpy(&(pData->_image_data)[pData->_image_data_length], buffer->data, buffer->length);
+                pData->_image_data_length = buffer->length + pData->_image_data_length;
             }
 
             mmal_buffer_header_mem_unlock(buffer);
@@ -2784,10 +2789,13 @@ void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buff
     if (complete) {
         if (pData->still_cb) {
             // call the callback with the completed image
-            pData->still_cb(pData->image_data, pData->image_data_length);
-            free(pData->image_data);
-            pData->image_data = NULL;
-            pData->image_data_length = 0;
+            pData->still_cb(pData->_image_data, pData->_image_data_length);
+            pData->image_data = malloc(sizeof(uint8_t) * pData->_image_data_length);
+            memcpy(pData->image_data, pData->_image_data, pData->_image_data_length);
+            pData->image_data_length = pData->_image_data_length;
+            free(pData->_image_data);
+            pData->_image_data = NULL;
+            pData->_image_data_length = 0;
         } else {
             vcos_log_error("no still callback specified");
         }
