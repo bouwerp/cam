@@ -701,14 +701,14 @@ void preview_set_defaults(CAM_PREVIEW_PARAMETERS *state)
 MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
     MMAL_COMPONENT_T *camera = 0;
     MMAL_ES_FORMAT_T *format;
-    MMAL_PORT_T *video_port = NULL, *still_port = NULL;
+    MMAL_PORT_T *video_port = NULL;
     MMAL_STATUS_T status;
 
     /* Create the component */
     status = mmal_component_create(MMAL_COMPONENT_DEFAULT_CAMERA, &camera);
 
     if (status != MMAL_SUCCESS) {
-        vcos_log_error("Failed to create camera component");
+        printf("Failed to create camera component");
         goto error;
     }
 
@@ -717,7 +717,7 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
     status += set_stereo_mode(camera->output[2], &state->camera_parameters.stereo_mode);
 
     if (status != MMAL_SUCCESS) {
-       vcos_log_error("Could not set stereo mode : error %d", status);
+        printf("Could not set stereo mode : error %d", status);
         goto error;
     }
 
@@ -727,13 +727,13 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
     status = mmal_port_parameter_set(camera->control, &camera_num.hdr);
 
     if (status != MMAL_SUCCESS) {
-       vcos_log_error("Could not select camera : error %d", status);
+        printf("Could not select camera : error %d", status);
         goto error;
     }
 
     if (!camera->output_num) {
         status = MMAL_ENOSYS;
-       vcos_log_error("Camera doesn't have output ports");
+        printf("Camera doesn't have output ports");
         goto error;
     }
 
@@ -741,17 +741,17 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
                                             state->common_settings.sensor_mode);
 
     if (status != MMAL_SUCCESS) {
-       vcos_log_error("Could not set sensor mode : error %d", status);
+        printf("Could not set sensor mode : error %d", status);
         goto error;
     }
 
-    still_port = camera->output[MMAL_CAMERA_CAPTURE_PORT];
+    video_port = camera->output[MMAL_CAMERA_VIDEO_PORT];
 
     // Enable the camera, and tell it its control callback function
     status = mmal_port_enable(camera->control, default_camera_control_callback);
 
     if (status != MMAL_SUCCESS) {
-       vcos_log_error("Unable to enable control port : error %d", status);
+        printf("Unable to enable control port : error %d", status);
         goto error;
     }
 
@@ -760,12 +760,11 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
         MMAL_PARAMETER_CAMERA_CONFIG_T cam_config =
                 {
                         {MMAL_PARAMETER_CAMERA_CONFIG, sizeof(cam_config)},
-                        .max_stills_w = state->common_settings.width,
-                        .max_stills_h = state->common_settings.height,
-                        .stills_yuv422 = 0,
-                        .one_shot_stills = 0,
-                        .stills_capture_circular_buffer_height = 0,
-                        .use_stc_timestamp = MMAL_PARAM_TIMESTAMP_MODE_RAW_STC,
+                        .max_preview_video_w = state->common_settings.width,
+                        .max_preview_video_h = state->common_settings.height,
+                        .num_preview_video_frames = 3 + vcos_max(0, (state->framerate - 30) / 10),
+                        .fast_preview_resume = 0,
+                        .use_stc_timestamp = MMAL_PARAM_TIMESTAMP_MODE_RAW_STC
                 };
         mmal_port_parameter_set(camera->control, &cam_config.hdr);
     }
@@ -781,38 +780,50 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
         }
     }
     // Set the encode format on the video  port
-    // Set the encode format on the still  port
 
-    format = still_port->format;
-
-    format->encoding = MMAL_ENCODING_OPAQUE;
+    format = video_port->format;
     format->encoding_variant = MMAL_ENCODING_I420;
 
+    if (state->camera_parameters.shutter_speed > 6000000) {
+        MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
+                                                {50,                       1000},
+                                                {166,                      1000}
+        };
+        mmal_port_parameter_set(video_port, &fps_range.hdr);
+    } else if (state->camera_parameters.shutter_speed > 1000000) {
+        MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
+                                                {167,                      1000},
+                                                {999,                      1000}
+        };
+        mmal_port_parameter_set(video_port, &fps_range.hdr);
+    }
+
+    format->encoding = MMAL_ENCODING_OPAQUE;
     format->es->video.width = VCOS_ALIGN_UP(state->common_settings.width, 32);
     format->es->video.height = VCOS_ALIGN_UP(state->common_settings.height, 16);
     format->es->video.crop.x = 0;
     format->es->video.crop.y = 0;
     format->es->video.crop.width = state->common_settings.width;
     format->es->video.crop.height = state->common_settings.height;
-    format->es->video.frame_rate.num = 0;
-    format->es->video.frame_rate.den = 1;
+    format->es->video.frame_rate.num = state->framerate;
+    format->es->video.frame_rate.den = VIDEO_FRAME_RATE_DEN;
 
-    status = mmal_port_format_commit(still_port);
+    status = mmal_port_format_commit(video_port);
 
     if (status != MMAL_SUCCESS) {
-       vcos_log_error("camera still format couldn't be set");
+        printf("camera video format couldn't be set");
         goto error;
     }
 
-    /* Ensure there are enough buffers to avoid dropping frames */
-    if (still_port->buffer_num < VIDEO_OUTPUT_BUFFERS_NUM)
-        still_port->buffer_num = VIDEO_OUTPUT_BUFFERS_NUM;
+    // Ensure there are enough buffers to avoid dropping frames
+    if (video_port->buffer_num < VIDEO_OUTPUT_BUFFERS_NUM)
+        video_port->buffer_num = VIDEO_OUTPUT_BUFFERS_NUM;
 
     /* Enable component */
     status = mmal_component_enable(camera);
 
     if (status != MMAL_SUCCESS) {
-       vcos_log_error("camera component couldn't be enabled");
+        printf("camera component couldn't be enabled");
         goto error;
     }
 
@@ -822,7 +833,7 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
     state->camera_component = camera;
 
     if (state->common_settings.verbose)
-        vcos_log_info("Camera component done\n");
+        fprintf(stderr, "Camera component done\n");
 
     return status;
 
@@ -851,13 +862,13 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
     status = mmal_component_create(MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER, &encoder);
 
     if (status != MMAL_SUCCESS) {
-       vcos_log_error("Unable to create video encoder component");
+        printf("Unable to create video encoder component");
         goto error;
     }
 
     if (!encoder->input_num || !encoder->output_num) {
         status = MMAL_ENOSYS;
-       vcos_log_error("Video encoder doesn't have input/output ports");
+        printf("Video encoder doesn't have input/output ports");
         goto error;
     }
 
@@ -873,18 +884,18 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
     if (state->encoding == MMAL_ENCODING_H264) {
         if (state->level == MMAL_VIDEO_LEVEL_H264_4) {
             if (state->bitrate > MAX_BITRATE_LEVEL4) {
-                vcos_log_error( "Bitrate too high: Reducing to 25MBit/s\n");
+                fprintf(stderr, "Bitrate too high: Reducing to 25MBit/s\n");
                 state->bitrate = MAX_BITRATE_LEVEL4;
             }
         } else {
             if (state->bitrate > MAX_BITRATE_LEVEL42) {
-                vcos_log_error( "Bitrate too high: Reducing to 62.5MBit/s\n");
+                fprintf(stderr, "Bitrate too high: Reducing to 62.5MBit/s\n");
                 state->bitrate = MAX_BITRATE_LEVEL42;
             }
         }
     } else if (state->encoding == MMAL_ENCODING_MJPEG) {
         if (state->bitrate > MAX_BITRATE_MJPEG) {
-            vcos_log_error( "Bitrate too high: Reducing to 25MBit/s\n");
+            fprintf(stderr, "Bitrate too high: Reducing to 25MBit/s\n");
             state->bitrate = MAX_BITRATE_MJPEG;
         }
     }
@@ -914,7 +925,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
     status = mmal_port_format_commit(encoder_output);
 
     if (status != MMAL_SUCCESS) {
-       vcos_log_error("Unable to set format on video encoder output port");
+        printf("Unable to set format on video encoder output port");
         goto error;
     }
 
@@ -924,7 +935,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
                                                     MMAL_VIDEO_RATECONTROL_DEFAULT};
         status = mmal_port_parameter_set(encoder_output, &param.hdr);
         if (status != MMAL_SUCCESS) {
-           vcos_log_error("Unable to set ratecontrol");
+            printf("Unable to set ratecontrol");
             goto error;
         }
 
@@ -935,7 +946,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
         MMAL_PARAMETER_UINT32_T param = {{MMAL_PARAMETER_INTRAPERIOD, sizeof(param)}, state->intraperiod};
         status = mmal_port_parameter_set(encoder_output, &param.hdr);
         if (status != MMAL_SUCCESS) {
-           vcos_log_error("Unable to set intraperiod");
+            printf("Unable to set intraperiod");
             goto error;
         }
     }
@@ -945,7 +956,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
 
         if (state->slices > frame_mb_rows) //warn user if too many slices selected
         {
-            vcos_log_error( "H264 Slice count (%d) exceeds number of macroblock rows (%d). Setting slices to %d.\n",
+            fprintf(stderr, "H264 Slice count (%d) exceeds number of macroblock rows (%d). Setting slices to %d.\n",
                     state->slices, frame_mb_rows, frame_mb_rows);
             // Continue rather than abort..
         }
@@ -955,7 +966,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
 
         status = mmal_port_parameter_set_uint32(encoder_output, MMAL_PARAMETER_MB_ROWS_PER_SLICE, slice_row_mb);
         if (status != MMAL_SUCCESS) {
-           vcos_log_error("Unable to set number of slices");
+            printf("Unable to set number of slices");
             goto error;
         }
     }
@@ -966,7 +977,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
                                          state->quantisationParameter};
         status = mmal_port_parameter_set(encoder_output, &param.hdr);
         if (status != MMAL_SUCCESS) {
-           vcos_log_error("Unable to set initial QP");
+            printf("Unable to set initial QP");
             goto error;
         }
 
@@ -974,7 +985,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
                                           state->quantisationParameter};
         status = mmal_port_parameter_set(encoder_output, &param2.hdr);
         if (status != MMAL_SUCCESS) {
-           vcos_log_error("Unable to set min QP");
+            printf("Unable to set min QP");
             goto error;
         }
 
@@ -982,7 +993,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
                                           state->quantisationParameter};
         status = mmal_port_parameter_set(encoder_output, &param3.hdr);
         if (status != MMAL_SUCCESS) {
-           vcos_log_error("Unable to set max QP");
+            printf("Unable to set max QP");
             goto error;
         }
     }
@@ -998,10 +1009,10 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
             (VCOS_ALIGN_UP(state->common_settings.height, 16) >> 4) * state->framerate > 245760) {
             if ((VCOS_ALIGN_UP(state->common_settings.width, 16) >> 4) *
                 (VCOS_ALIGN_UP(state->common_settings.height, 16) >> 4) * state->framerate <= 522240) {
-                vcos_log_error( "Too many macroblocks/s: Increasing H264 Level to 4.2\n");
+                fprintf(stderr, "Too many macroblocks/s: Increasing H264 Level to 4.2\n");
                 state->level = MMAL_VIDEO_LEVEL_H264_42;
             } else {
-               vcos_log_error("Too many macroblocks/s requested");
+                printf("Too many macroblocks/s requested");
                 status = MMAL_EINVAL;
                 goto error;
             }
@@ -1011,14 +1022,14 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
 
         status = mmal_port_parameter_set(encoder_output, &param.hdr);
         if (status != MMAL_SUCCESS) {
-           vcos_log_error("Unable to set H264 profile");
+            printf("Unable to set H264 profile");
             goto error;
         }
     }
 
     if (mmal_port_parameter_set_boolean(encoder_input, MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT, state->immutableInput) !=
         MMAL_SUCCESS) {
-       vcos_log_error("Unable to set immutable input flag");
+        printf("Unable to set immutable input flag");
         // Continue rather than abort..
     }
 
@@ -1026,21 +1037,21 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
         //set INLINE HEADER flag to generate SPS and PPS for every IDR if requested
         if (mmal_port_parameter_set_boolean(encoder_output, MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
                                             state->bInlineHeaders) != MMAL_SUCCESS) {
-           vcos_log_error("failed to set INLINE HEADER FLAG parameters");
+            printf("failed to set INLINE HEADER FLAG parameters");
             // Continue rather than abort..
         }
 
         //set flag for add SPS TIMING
         if (mmal_port_parameter_set_boolean(encoder_output, MMAL_PARAMETER_VIDEO_ENCODE_SPS_TIMING,
                                             state->addSPSTiming) != MMAL_SUCCESS) {
-           vcos_log_error("failed to set SPS TIMINGS FLAG parameters");
+            printf("failed to set SPS TIMINGS FLAG parameters");
             // Continue rather than abort..
         }
 
         //set INLINE VECTORS flag to request motion vector estimates
         if (mmal_port_parameter_set_boolean(encoder_output, MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS,
                                             state->inlineMotionVectors) != MMAL_SUCCESS) {
-           vcos_log_error("failed to set INLINE VECTORS parameters");
+            printf("failed to set INLINE VECTORS parameters");
             // Continue rather than abort..
         }
 
@@ -1053,7 +1064,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
             // Get first so we don't overwrite anything unexpectedly
             status = mmal_port_parameter_get(encoder_output, &param.hdr);
             if (status != MMAL_SUCCESS) {
-               vcos_log_error("Unable to get existing H264 intra-refresh values. Please update your firmware");
+                printf("Unable to get existing H264 intra-refresh values. Please update your firmware");
                 // Set some defaults, don't just pass random stack data
                 param.air_mbs = param.air_ref = param.cir_mbs = param.pir_mbs = 0;
             }
@@ -1065,34 +1076,34 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
 
             status = mmal_port_parameter_set(encoder_output, &param.hdr);
             if (status != MMAL_SUCCESS) {
-               vcos_log_error("Unable to set H264 intra-refresh values");
+                printf("Unable to set H264 intra-refresh values");
                 goto error;
             }
         }
     }
 
     //  Enable component
-   vcos_log_info("enabling the encoder component...\n");
+    printf("enabling the encoder component...\n");
     status = mmal_component_enable(encoder);
     if (status != MMAL_SUCCESS) {
-       vcos_log_error("Unable to enable video encoder component\n");
+        printf("Unable to enable video encoder component\n");
         goto error;
     }
 
     /* Create pool of buffer headers for the output port to consume */
-   vcos_log_info("creating the buffer header pool...\n");
+    printf("creating the buffer header pool...\n");
     pool = mmal_port_pool_create(encoder_output, encoder_output->buffer_num, encoder_output->buffer_size);
 
     if (!pool) {
-       vcos_log_error("Failed to create buffer header pool for encoder output port %s", encoder_output->name);
+        printf("Failed to create buffer header pool for encoder output port %s", encoder_output->name);
     }
 
     state->video_encoder_pool = pool;
     state->video_encoder_component = encoder;
 
-   vcos_log_info("encoder component done\n");
+    printf("encoder component done\n");
     if (state->common_settings.verbose)
-        vcos_log_error( "Encoder component done\n");
+        fprintf(stderr, "Encoder component done\n");
 
     return status;
 
