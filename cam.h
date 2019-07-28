@@ -9,15 +9,14 @@ extern "C"{
 #ifndef CAM_H
 #define CAM_H
 
-#include <stdio.h>
-#include <stdbool.h>
+#include <cstdio>
+#include <cstdbool>
 #include <sys/socket.h>
-#include <stdlib.h>
-#include <ctype.h>
+#include <cstdlib>
+#include <cctype>
 #include <endian.h>
 #include <unistd.h>
 #include <sysexits.h>
-#include <stdio.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -51,21 +50,21 @@ extern "C"{
 
 /// Annotate bitmask options
 /// Supplied by user on command line
-#define ANNOTATE_USER_TEXT          1
+#define ANNOTATE_USER_TEXT          (uint)1
 /// Supplied by app using this module
-#define ANNOTATE_APP_TEXT           2
+#define ANNOTATE_APP_TEXT           (uint)2
 /// Insert current date
-#define ANNOTATE_DATE_TEXT          4
+#define ANNOTATE_DATE_TEXT          (uint)4
 // Insert current time
-#define ANNOTATE_TIME_TEXT          8
+#define ANNOTATE_TIME_TEXT          (uint)8
 
-#define ANNOTATE_SHUTTER_SETTINGS   16
-#define ANNOTATE_CAF_SETTINGS       32
-#define ANNOTATE_GAIN_SETTINGS      64
-#define ANNOTATE_LENS_SETTINGS      128
-#define ANNOTATE_MOTION_SETTINGS    256
-#define ANNOTATE_FRAME_NUMBER       512
-#define ANNOTATE_BLACK_BACKGROUND   1024
+#define ANNOTATE_SHUTTER_SETTINGS   (uint)16
+#define ANNOTATE_CAF_SETTINGS       (uint)32
+#define ANNOTATE_GAIN_SETTINGS      (uint)64
+#define ANNOTATE_LENS_SETTINGS      (uint)128
+#define ANNOTATE_MOTION_SETTINGS    (uint)256
+#define ANNOTATE_FRAME_NUMBER       (uint)512
+#define ANNOTATE_BLACK_BACKGROUND   (uint)1024
 
 // Max bitrate we allow for recording
 #define MAX_BITRATE_MJPEG 25000000 // 25Mbits/s
@@ -112,8 +111,8 @@ typedef struct mmal_param_colourfx_s {
 
 typedef struct {
     char camera_name[MMAL_PARAMETER_CAMERA_INFO_MAX_STR_LEN]; // Name of the camera sensor
-    int width;                          /// Requested width of image
-    int height;                         /// requested height of image
+    uint32_t width;                          /// Requested width of image
+    uint32_t height;                         /// requested height of image
     char *filename;                     /// filename of output file
     int cameraNum;                      /// Camera number
     int sensor_mode;                    /// Sensor mode. 0=auto. Check docs/forum for modes selected by other values.
@@ -242,14 +241,14 @@ struct CAM_STATE_S {
     int timeout;                        /// Time taken before frame is grabbed and app then shuts down. Units are milliseconds
     MMAL_FOURCC_T encoding;             /// Requested codec video encoding (MJPEG or H264)
     int bitrate;                        /// Requested bitrate
-    int framerate;                      /// Requested frame rate (fps)
-    int intraperiod;                    /// Intra-refresh period (key frame rate)
-    int quantisationParameter;          /// Quantisation parameter - quality. Set bitrate 0 and set this for variable bitrate
+    uint32_t framerate;                      /// Requested frame rate (fps)
+    uint32_t intraperiod;                    /// Intra-refresh period (key frame rate)
+    uint32_t quantisationParameter;          /// Quantisation parameter - quality. Set bitrate 0 and set this for variable bitrate
     int bInlineHeaders;                  /// Insert inline headers to stream (SPS, PPS)
     int immutableInput;                 /// Flag to specify whether encoder works in place or creates a new buffer. Result is preview can display either
     /// the camera output or the encoder output (with compression artifacts)
-    int profile;                        /// H264 profile to use for encoding
-    int level;                          /// H264 level to use for encoding
+    uint32_t profile;                        /// H264 profile to use for encoding
+    uint32_t level;                          /// H264 level to use for encoding
     int waitMethod;                     /// Method for switching between pause and capture
 
     int onTime;                         /// In timed cycle mode, the amount of time the capture is on per cycle
@@ -378,7 +377,7 @@ static VCHI_CONNECTION_T *global_connection;
 
 void check_camera_model(int cam_num);
 
-void get_sensor_defaults(int camera_num, char *camera_name, int *width, int *height);
+void get_sensor_defaults(int camera_num, char *camera_name, uint32_t *width, uint32_t *height);
 
 void destroy_encoder_component(CAM_STATE *state);
 
@@ -473,8 +472,6 @@ MMAL_STATUS_T init_still(CAM_STATE *state);
 int default_still_state(CAM_STATE *state);
 
 MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state);
-
-void destroy_still_encoder_component(CAM_STATE *state);
 
 MMAL_STATUS_T capture_still(CAM_STATE *state, CAM_STILL_CB still_cb);
 
