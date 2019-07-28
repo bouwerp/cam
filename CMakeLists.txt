@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.14)
-project(cam C)
+project(cam CXX)
 
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 
 # location to include files
-include_directories("include")
+include_directories(
+        "../userland"
+)
 
 # the actual library
-add_library(cam cam.c)
+add_library(cam cam.cc)
