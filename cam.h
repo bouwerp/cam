@@ -2,23 +2,24 @@
 // Created by Pieter Bouwer on 2019-04-30.
 //
 
+#include <functional>
+#include <cstdio>
+#include <cstdbool>
+#include <cstdlib>
+#include <cctype>
+#include <endian.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sysexits.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #ifdef __cplusplus
 extern "C"{
 #endif
 
 #ifndef CAM_H
 #define CAM_H
-
-#include <cstdio>
-#include <cstdbool>
-#include <sys/socket.h>
-#include <cstdlib>
-#include <cctype>
-#include <endian.h>
-#include <unistd.h>
-#include <sysexits.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
 #include "interface/mmal/mmal.h"
 #include "interface/mmal/util/mmal_default_components.h"
@@ -47,24 +48,6 @@ extern "C"{
 
 /// Video render needs at least 2 buffers.
 #define VIDEO_OUTPUT_BUFFERS_NUM 3
-
-/// Annotate bitmask options
-/// Supplied by user on command line
-#define ANNOTATE_USER_TEXT          (uint)1
-/// Supplied by app using this module
-#define ANNOTATE_APP_TEXT           (uint)2
-/// Insert current date
-#define ANNOTATE_DATE_TEXT          (uint)4
-// Insert current time
-#define ANNOTATE_TIME_TEXT          (uint)8
-
-#define ANNOTATE_SHUTTER_SETTINGS   (uint)16
-#define ANNOTATE_CAF_SETTINGS       (uint)32
-#define ANNOTATE_GAIN_SETTINGS      (uint)64
-#define ANNOTATE_LENS_SETTINGS      (uint)128
-#define ANNOTATE_MOTION_SETTINGS    (uint)256
-#define ANNOTATE_FRAME_NUMBER       (uint)512
-#define ANNOTATE_BLACK_BACKGROUND   (uint)1024
 
 // Max bitrate we allow for recording
 #define MAX_BITRATE_MJPEG 25000000 // 25Mbits/s
@@ -95,7 +78,6 @@ extern "C"{
 
 #define FULL_RES_PREVIEW_FRAME_RATE_NUM 0
 #define FULL_RES_PREVIEW_FRAME_RATE_DEN 1
-
 
 typedef enum {
     ZOOM_IN, ZOOM_OUT, ZOOM_RESET
@@ -135,23 +117,13 @@ typedef struct mmal_param_thumbnail_config_s
     int quality;
 } MMAL_PARAM_THUMBNAIL_CONFIG_T;
 
-/**
- * Callback for when a valid video frame is detected.
- */
-typedef void (*CAM_VIDEO_CB)(int64_t timestamp, uint8_t *data, uint32_t length, uint32_t offset);
-
-/**
- * Callback for a still capture frame.
- */
-typedef void (*CAM_STILL_CB)(uint8_t *data, uint32_t length);
-
 /** Struct used to pass information in encoder port userdata to callback
  */
 typedef struct {
+    std::function<void(int64_t timestamp, uint8_t *data, uint32_t length, uint32_t offset)> video_cb;
+    std::function<void(uint8_t *data, uint32_t length)> still_cb;
     FILE *file_handle;                   /// File handle to write buffer data to.
     CAM_STATE *pstate;              /// pointer to our state in case required in callback
-    CAM_VIDEO_CB video_cb;
-    CAM_STILL_CB still_cb;
     VCOS_SEMAPHORE_T complete_semaphore; /// semaphore which is posted when we reach end of frame (indicates end of capture or fault)
     int abort;                           /// Set to 1 in callback if an error occurs to attempt to abort the capture
 #define IFRAME_BUFSIZE (60*1000)
@@ -206,14 +178,7 @@ typedef struct cam_parameters_s {
     float awb_gains_b;         /// AWB blue gain
     MMAL_PARAMETER_DRC_STRENGTH_T drc_level;  // Strength of Dynamic Range compression to apply
     MMAL_BOOL_T stats_pass;    /// Stills capture statistics pass on/off
-    int enable_annotate;       /// Flag to enable the annotate, 0 = disabled, otherwise a bitmask of what needs to be displayed
     char annotate_string[MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V2]; /// String to use for annotate - overrides certain bitmask settings
-    int annotate_text_size;    // Text size for annotation
-    int annotate_text_colour;  // Text colour for annotation
-    int annotate_bg_colour;    // Background colour for annotation
-    unsigned int annotate_justify;
-    unsigned int annotate_x;
-    unsigned int annotate_y;
 
     MMAL_PARAMETER_STEREOSCOPIC_MODE_T stereo_mode;
     float analog_gain;         // Analog gain
@@ -297,8 +262,6 @@ struct CAM_STATE_S {
 
     int quality;                        /// JPEG quality setting (1-100)
     int wantRAW;                        /// Flag for whether the JPEG metadata also contains the RAW bayer image
-    char *linkname;                     /// filename of output file
-    int frameStart;                     /// First number of frame output counter
     MMAL_PARAM_THUMBNAIL_CONFIG_T thumbnailConfig;
     int timelapse;                      /// Delay between each picture in timelapse mode. If 0, disable timelapse
     int fullResPreview;                 /// If set, the camera preview port runs at capture resolution. Reduces fps.
@@ -473,7 +436,7 @@ int default_still_state(CAM_STATE *state);
 
 MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state);
 
-MMAL_STATUS_T capture_still(CAM_STATE *state, CAM_STILL_CB still_cb);
+MMAL_STATUS_T capture_still(CAM_STATE *state, std::function<void(uint8_t *data, uint32_t length)>);
 
 int wait_for_next_frame(CAM_STATE *state, int *frame);
 

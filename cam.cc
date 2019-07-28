@@ -5,6 +5,7 @@
 
 #include "cam.h"
 #include <cstdio>
+#include <utility>
 
 /**
  * Convert a MMAL status return value to a simple boolean of success
@@ -1405,11 +1406,7 @@ void camcontrol_set_defaults(CAM_PARAMETERS *params) {
     params->awb_gains_b = 0;
     params->drc_level = MMAL_PARAMETER_DRC_STRENGTH_OFF;
     params->stats_pass = MMAL_FALSE;
-    params->enable_annotate = 0;
     params->annotate_string[0] = '\0';
-    params->annotate_text_size = 0;    //Use firmware default
-    params->annotate_text_colour = -1;   //Use firmware default
-    params->annotate_bg_colour = -1;     //Use firmware default
     params->stereo_mode.mode = MMAL_STEREOSCOPIC_MODE_NONE;
     params->stereo_mode.decimate = MMAL_FALSE;
     params->stereo_mode.swap_eyes = MMAL_FALSE;
@@ -1434,8 +1431,6 @@ int default_still_state(CAM_STATE *state) {
     state->timeout = -1; // replaced with 5000ms later if unset
     state->quality = 85;
     state->wantRAW = 0;
-    state->linkname = nullptr;
-    state->frameStart = 0;
     state->thumbnailConfig.enable = 1;
     state->thumbnailConfig.width = 64;
     state->thumbnailConfig.height = 48;
@@ -2222,14 +2217,14 @@ int wait_for_next_frame(CAM_STATE *state, int *frame) {
  * @param state
  * @return
  */
-MMAL_STATUS_T capture_still(CAM_STATE *state, CAM_STILL_CB still_cb) {
+MMAL_STATUS_T capture_still(CAM_STATE *state, std::function<void(uint8_t *data, uint32_t length)> still_cb) {
     int frame, keep_looping = 1;
     MMAL_STATUS_T status;
 
     // Set up our userdata - this is passed though to the callback where we need the information.
     // Null until we open our filename
     state->callback_data.pstate = state;
-    state->callback_data.still_cb = still_cb;
+    state->callback_data.still_cb = std::move(still_cb);
 
     // create the semaphore to indicate successful frame handling (the semaphore is
     // completed in the encoder buffer callback)
@@ -2286,7 +2281,7 @@ MMAL_STATUS_T capture_still(CAM_STATE *state, CAM_STILL_CB still_cb) {
             status = mmal_port_enable(state->still_encoder_output_port, still_encoder_buffer_callback);
 
             // Send all the buffers to the encoder output port
-            num = mmal_queue_length(state->encoder_pool->queue);
+            num = (uint)mmal_queue_length(state->encoder_pool->queue);
 
             for (q=0; q<num; q++)
             {
@@ -2493,13 +2488,13 @@ void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
         base_time = get_microseconds64()/1000;
 
     // We pass our file handle and other stuff in via the userdata field.
-    PORT_USERDATA *pData = (PORT_USERDATA *)port->userdata;
+    auto *pData = (PORT_USERDATA *)port->userdata;
 
     if (pData) {
         int bytes_written = buffer->length;
         int64_t current_time = get_microseconds64()/1000;
 
-        if ((buffer->flags & MMAL_BUFFER_HEADER_FLAG_CONFIG) &&
+        if ((buffer->flags & MMAL_BUFFER_HEADER_FLAG_CONFIG) && // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
             ((pData->pstate->segmentSize && current_time > base_time + pData->pstate->segmentSize) ||
              (pData->pstate->splitWait && pData->pstate->splitNow))) {
             // increase segment??
@@ -2516,7 +2511,7 @@ void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
             mmal_buffer_header_mem_lock(buffer);
 
             // deal with any 'side information' (only IMV's in our case)
-            if(buffer->flags & MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO) {
+            if(buffer->flags & MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
                 if(pData->pstate->inlineMotionVectors) {
                     vcos_log_info("*** IMV of length %i\n", buffer->length);
                 } else {
@@ -2524,13 +2519,13 @@ void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
                 }
             } else {
                 /* a frame has ended */
-                if((buffer->flags & MMAL_BUFFER_HEADER_FLAG_FRAME_END || buffer->flags == 0 ||
+                if((buffer->flags & MMAL_BUFFER_HEADER_FLAG_FRAME_END || buffer->flags == 0 || // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
                     /* is a keyframe (i.e., standalone) */
-                    buffer->flags & MMAL_BUFFER_HEADER_FLAG_KEYFRAME) &&
+                    buffer->flags & MMAL_BUFFER_HEADER_FLAG_KEYFRAME) && // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
                    /* contains config data (codec data) */
-                   !(buffer->flags & MMAL_BUFFER_HEADER_FLAG_CONFIG)) {
+                   !(buffer->flags & MMAL_BUFFER_HEADER_FLAG_CONFIG)) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
                     // must be specified time? and not the same time?
-                    if(buffer->pts != MMAL_TIME_UNKNOWN && buffer->pts != pData->pstate->lasttime) {
+                    if(buffer->pts != MMAL_TIME_UNKNOWN && buffer->pts != pData->pstate->lasttime) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
                         int64_t pts;
                         if(pData->pstate->frame==0)pData->pstate->starttime=buffer->pts;
                         pData->pstate->lasttime=buffer->pts;
@@ -2585,7 +2580,7 @@ void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
 void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
     int complete = 0;
 
-    PORT_USERDATA *pData = (PORT_USERDATA *)port->userdata;
+    auto *pData = (PORT_USERDATA *)port->userdata;
 
     if (pData)
     {
@@ -2619,7 +2614,7 @@ void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buff
         }
 
         // Now flag if we have completed
-        if (buffer->flags & (MMAL_BUFFER_HEADER_FLAG_FRAME_END | MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED))
+        if (buffer->flags & (MMAL_BUFFER_HEADER_FLAG_FRAME_END | MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)) // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
             complete = 1;
     }
     else
