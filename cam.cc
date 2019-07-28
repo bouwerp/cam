@@ -338,64 +338,6 @@ int set_awb_gains(MMAL_COMPONENT_T *camera, float r_gain, float b_gain) {
 }
 
 /**
- * Set the image effect for the images
- * @param camera Pointer to camera component
- * @param imageFX Value from
- *   - MMAL_PARAM_IMAGEFX_NONE,
- *   - MMAL_PARAM_IMAGEFX_NEGATIVE,
- *   - MMAL_PARAM_IMAGEFX_SOLARIZE,
- *   - MMAL_PARAM_IMAGEFX_POSTERIZE,
- *   - MMAL_PARAM_IMAGEFX_WHITEBOARD,
- *   - MMAL_PARAM_IMAGEFX_BLACKBOARD,
- *   - MMAL_PARAM_IMAGEFX_SKETCH,
- *   - MMAL_PARAM_IMAGEFX_DENOISE,
- *   - MMAL_PARAM_IMAGEFX_EMBOSS,
- *   - MMAL_PARAM_IMAGEFX_OILPAINT,
- *   - MMAL_PARAM_IMAGEFX_HATCH,
- *   - MMAL_PARAM_IMAGEFX_GPEN,
- *   - MMAL_PARAM_IMAGEFX_PASTEL,
- *   - MMAL_PARAM_IMAGEFX_WATERCOLOUR,
- *   - MMAL_PARAM_IMAGEFX_FILM,
- *   - MMAL_PARAM_IMAGEFX_BLUR,
- *   - MMAL_PARAM_IMAGEFX_SATURATION,
- *   - MMAL_PARAM_IMAGEFX_COLOURSWAP,
- *   - MMAL_PARAM_IMAGEFX_WASHEDOUT,
- *   - MMAL_PARAM_IMAGEFX_POSTERISE,
- *   - MMAL_PARAM_IMAGEFX_COLOURPOINT,
- *   - MMAL_PARAM_IMAGEFX_COLOURBALANCE,
- *   - MMAL_PARAM_IMAGEFX_CARTOON,
- * @return 0 if successful, non-zero if any parameters out of range
- */
-int set_imageFX(MMAL_COMPONENT_T *camera, MMAL_PARAM_IMAGEFX_T imageFX) {
-    MMAL_PARAMETER_IMAGEFX_T imgFX = {{MMAL_PARAMETER_IMAGE_EFFECT, sizeof(imgFX)}, imageFX};
-
-    if (!camera)
-        return 1;
-
-    return (mmal_port_parameter_set(camera->control, &imgFX.hdr));
-}
-
-/**
- * Set the colour effect  for images (Set UV component)
- * @param camera Pointer to camera component
- * @param colourFX  Contains enable state and U and V numbers to set (e.g. 128,128 = Black and white)
- * @return 0 if successful, non-zero if any parameters out of range
- */
-int set_colourFX(MMAL_COMPONENT_T *camera, const MMAL_PARAM_COLOURFX_T *colourFX) {
-    MMAL_PARAMETER_COLOURFX_T colfx = {{MMAL_PARAMETER_COLOUR_EFFECT, sizeof(colfx)}, 0, 0, 0};
-
-    if (!camera)
-        return 1;
-
-    colfx.enable = colourFX->enable;
-    colfx.u = colourFX->u;
-    colfx.v = colourFX->v;
-
-    return (mmal_port_parameter_set(camera->control, &colfx.hdr));
-
-}
-
-/**
  * Set the rotation of the image
  * @param camera Pointer to camera component
  * @param rotation Degree of rotation (any number, but will be converted to 0,90,180 or 270 only)
@@ -2412,8 +2354,8 @@ MMAL_STATUS_T init_still(CAM_STATE *state) {
     PORT_USERDATA callback_data;
     callback_data.image_data = nullptr;
     callback_data.image_data_length = 0;
-    callback_data._image_data = nullptr;
-    callback_data._image_data_length = 0;
+    callback_data.image_data = nullptr;
+    callback_data.image_data_length = 0;
 
     if (state->common_settings.verbose)
         vcos_log_info( "Starting component connection stage\n");
@@ -2590,17 +2532,17 @@ void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buff
         {
             mmal_buffer_header_mem_lock(buffer);
 
-            if (pData->_image_data == nullptr) {
+            if (pData->image_data == nullptr) {
                 // start a new image
-                pData->_image_data = (uint8_t *)malloc(sizeof(uint8_t) * buffer->length);
-                memcpy(pData->_image_data, buffer->data, buffer->length);
-                pData->_image_data_length = buffer->length;
+                pData->image_data = (uint8_t *)malloc(sizeof(uint8_t) * buffer->length);
+                memcpy(pData->image_data, buffer->data, buffer->length);
+                pData->image_data_length = buffer->length;
             } else {
                 // continue building the current image
-                pData->_image_data = (uint8_t *)realloc(pData->_image_data,
-                        sizeof(uint8_t) * (buffer->length + pData->_image_data_length));
-                memcpy(&(pData->_image_data)[pData->_image_data_length], buffer->data, buffer->length);
-                pData->_image_data_length = buffer->length + pData->_image_data_length;
+                pData->image_data = (uint8_t *)realloc(pData->image_data,
+                        sizeof(uint8_t) * (buffer->length + pData->image_data_length));
+                memcpy(&(pData->image_data)[pData->image_data_length], buffer->data, buffer->length);
+                pData->image_data_length = buffer->length + pData->image_data_length;
             }
 
             mmal_buffer_header_mem_unlock(buffer);
@@ -2644,13 +2586,7 @@ void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buff
     if (complete) {
         if (pData->still_cb) {
             // call the callback with the completed image
-            pData->still_cb(pData->_image_data, pData->_image_data_length);
-            pData->image_data = (uint8_t *)malloc(sizeof(uint8_t) * pData->_image_data_length);
-            memcpy(pData->image_data, pData->_image_data, pData->_image_data_length);
-            pData->image_data_length = pData->_image_data_length;
-            free(pData->_image_data);
-            pData->_image_data = nullptr;
-            pData->_image_data_length = 0;
+            pData->still_cb(pData->image_data, pData->image_data_length);
         } else {
             vcos_log_error("no still callback specified");
         }

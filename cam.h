@@ -134,10 +134,6 @@ typedef struct {
     int header_wptr;
     int flush_buffers;
     // temporary image data
-    uint8_t *_image_data;
-    long _image_data_length;
-    // final image data
-    int capture_in_progress;
     uint8_t *image_data;
     long image_data_length;
 } PORT_USERDATA;
@@ -201,7 +197,6 @@ typedef struct
 /** Structure containing all state information for the current run
  */
 struct CAM_STATE_S {
-    pthread_mutex_t mutex;
     CAM_COMMONSETTINGS_PARAMETERS common_settings;     /// Common settings
     int timeout;                        /// Time taken before frame is grabbed and app then shuts down. Units are milliseconds
     MMAL_FOURCC_T encoding;             /// Requested codec video encoding (MJPEG or H264)
@@ -254,7 +249,6 @@ struct CAM_STATE_S {
 
     //still
     MMAL_COMPONENT_T *still_encoder_component;   /// Pointer to the encoder component
-    MMAL_CONNECTION_T *still_encoder_connection; /// Pointer to the connection from camera to encoder
 
     MMAL_PORT_T *camera_still_port;
     MMAL_PORT_T *still_encoder_input_port;
@@ -271,7 +265,6 @@ struct CAM_STATE_S {
     int restart_interval;               /// JPEG restart interval. 0 for none.
 
     MMAL_COMPONENT_T *encoder_component;   /// Pointer to the encoder component
-    MMAL_COMPONENT_T *null_sink_component; /// Pointer to the null sink component
     MMAL_CONNECTION_T *encoder_connection; /// Pointer to the connection from camera to encoder
 
     MMAL_POOL_T *encoder_pool; /// Pointer to the pool of buffers used by encoder output port
