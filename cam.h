@@ -117,11 +117,14 @@ typedef struct mmal_param_thumbnail_config_s
     int quality;
 } MMAL_PARAM_THUMBNAIL_CONFIG_T;
 
+typedef std::function<void(int64_t timestamp, uint8_t *data, uint32_t length, uint32_t offset)> VideoCallback;
+typedef std::function<void(uint8_t *data, uint32_t length)> StillCallback;
+
 /** Struct used to pass information in encoder port userdata to callback
  */
 typedef struct {
-    std::function<void(int64_t timestamp, uint8_t *data, uint32_t length, uint32_t offset)> video_cb;
-    std::function<void(uint8_t *data, uint32_t length)> still_cb;
+    VideoCallback video_cb;
+    StillCallback still_cb;
     FILE *file_handle;                   /// File handle to write buffer data to.
     CAM_STATE *pstate;              /// pointer to our state in case required in callback
     VCOS_SEMAPHORE_T complete_semaphore; /// semaphore which is posted when we reach end of frame (indicates end of capture or fault)
@@ -429,7 +432,7 @@ int default_still_state(CAM_STATE *state);
 
 MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state);
 
-MMAL_STATUS_T capture_still(CAM_STATE *state, std::function<void(uint8_t *data, uint32_t length)>);
+MMAL_STATUS_T capture_still(CAM_STATE *state, StillCallback);
 
 int wait_for_next_frame(CAM_STATE *state, int *frame);
 

@@ -2157,7 +2157,7 @@ int wait_for_next_frame(CAM_STATE *state, int *frame) {
  * @param state
  * @return
  */
-MMAL_STATUS_T capture_still(CAM_STATE *state, std::function<void(uint8_t *data, uint32_t length)> still_cb) {
+MMAL_STATUS_T capture_still(CAM_STATE *state, StillCallback still_cb) {
     int frame, keep_looping = 1;
     MMAL_STATUS_T status;
 
