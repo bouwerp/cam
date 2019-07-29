@@ -603,7 +603,7 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
     };
     cam_config.max_preview_video_w = state->common_settings.width;
     cam_config.max_preview_video_h = state->common_settings.height;
-    cam_config.num_preview_video_frames = 3 + vcos_max(0, (state->framerate - 30) / 10);
+    cam_config.num_preview_video_frames = 3;
     cam_config.fast_preview_resume = 0;
     cam_config.use_stc_timestamp = MMAL_PARAM_TIMESTAMP_MODE_RAW_STC;
     mmal_port_parameter_set(camera->control, &cam_config.hdr);
