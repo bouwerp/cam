@@ -480,8 +480,6 @@ int set_all_parameters(MMAL_COMPONENT_T *camera, const CAM_PARAMETERS *params) {
     result += set_metering_mode(camera, params->exposureMeterMode);
     result += set_awb_mode(camera, params->awbMode);
     result += set_awb_gains(camera, params->awb_gains_r, params->awb_gains_b);
-    result += set_imageFX(camera, params->imageEffect);
-    result += set_colourFX(camera, &params->colourEffects);
     result += set_rotation(camera, params->rotation);
     result += set_flips(camera, params->hflip, params->vflip);
     result += set_ROI(camera, params->roi);
