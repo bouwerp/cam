@@ -26,7 +26,7 @@ void bcm_host_init(void) {
     vcos_init();
 
     if (vchiq_initialise(&vchiq_instance) != VCHIQ_SUCCESS) {
-       vcos_log_error("* failed to open vchiq instance\n");
+        vcos_log_error("* failed to open vchiq instance\n");
         exit(-1);
     }
 
@@ -76,20 +76,21 @@ void default_camera_control_callback(MMAL_PORT_T *, MMAL_BUFFER_HEADER_T *buffer
         switch (param->hdr.id) {
             case MMAL_PARAMETER_CAMERA_SETTINGS: {
                 auto *settings = (MMAL_PARAMETER_CAMERA_SETTINGS_T *) buffer->data;
-               vcos_log_info("Exposure now %u, analog gain %u/%u, digital gain %u/%u",
-                       settings->exposure,
-                       settings->analog_gain.num, settings->analog_gain.den,
-                       settings->digital_gain.num, settings->digital_gain.den);
-               vcos_log_info("AWB R=%u/%u, B=%u/%u",
-                       settings->awb_red_gain.num, settings->awb_red_gain.den,
-                       settings->awb_blue_gain.num, settings->awb_blue_gain.den);
+                vcos_log_info("Exposure now %u, analog gain %u/%u, digital gain %u/%u",
+                              settings->exposure,
+                              settings->analog_gain.num, settings->analog_gain.den,
+                              settings->digital_gain.num, settings->digital_gain.den);
+                vcos_log_info("AWB R=%u/%u, B=%u/%u",
+                              settings->awb_red_gain.num, settings->awb_red_gain.den,
+                              settings->awb_blue_gain.num, settings->awb_blue_gain.den);
             }
                 break;
         }
     } else if (buffer->cmd == MMAL_EVENT_ERROR) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-       vcos_log_error("No data received from sensor. Check all connections, including the Sunny one on the camera board");
+        vcos_log_error(
+                "No data received from sensor. Check all connections, including the Sunny one on the camera board");
     } else {
-       vcos_log_error("Received unexpected camera control callback event, 0x%08x", buffer->cmd);
+        vcos_log_error("Received unexpected camera control callback event, 0x%08x", buffer->cmd);
     }
 
     mmal_buffer_header_release(buffer);
@@ -111,7 +112,7 @@ int set_saturation(MMAL_COMPONENT_T *camera, int saturation) {
         MMAL_RATIONAL_T value = {saturation, 100};
         ret = mmal_port_parameter_set_rational(camera->control, MMAL_PARAMETER_SATURATION, value);
     } else {
-       vcos_log_error("Invalid saturation value");
+        vcos_log_error("Invalid saturation value");
         ret = 1;
     }
 
@@ -133,7 +134,7 @@ int set_sharpness(MMAL_COMPONENT_T *camera, int sharpness) {
         MMAL_RATIONAL_T value = {sharpness, 100};
         ret = mmal_port_parameter_set_rational(camera->control, MMAL_PARAMETER_SHARPNESS, value);
     } else {
-       vcos_log_error("Invalid sharpness value");
+        vcos_log_error("Invalid sharpness value");
         ret = 1;
     }
 
@@ -156,7 +157,7 @@ int set_contrast(MMAL_COMPONENT_T *camera, int contrast) {
         MMAL_RATIONAL_T value = {contrast, 100};
         ret = (mmal_port_parameter_set_rational(camera->control, MMAL_PARAMETER_CONTRAST, value));
     } else {
-       vcos_log_error("Invalid contrast value");
+        vcos_log_error("Invalid contrast value");
         ret = 1;
     }
 
@@ -179,7 +180,7 @@ int set_brightness(MMAL_COMPONENT_T *camera, int brightness) {
         MMAL_RATIONAL_T value = {brightness, 100};
         ret = (mmal_port_parameter_set_rational(camera->control, MMAL_PARAMETER_BRIGHTNESS, value));
     } else {
-       vcos_log_error("Invalid brightness value");
+        vcos_log_error("Invalid brightness value");
         ret = 1;
     }
 
@@ -435,6 +436,7 @@ int set_stats_pass(MMAL_COMPONENT_T *camera, int stats_pass) {
     return (
             mmal_port_parameter_set_boolean(camera->control, MMAL_PARAMETER_CAPTURE_STATS_PASS, stats_pass));
 }
+
 /**
  * 
  * @param camera 
@@ -468,7 +470,7 @@ int set_gains(MMAL_COMPONENT_T *camera, float analog, float digital) {
 int set_all_parameters(MMAL_COMPONENT_T *camera, const CAM_PARAMETERS *params) {
     int result;
 
-    result  = set_saturation(camera, params->saturation);
+    result = set_saturation(camera, params->saturation);
     result += set_sharpness(camera, params->sharpness);
     result += set_contrast(camera, params->contrast);
     result += set_brightness(camera, params->brightness);
@@ -488,8 +490,7 @@ int set_all_parameters(MMAL_COMPONENT_T *camera, const CAM_PARAMETERS *params) {
     result += set_stats_pass(camera, params->stats_pass);
     result += set_gains(camera, params->analog_gain, params->digital_gain);
 
-    if (params->settings)
-    {
+    if (params->settings) {
         MMAL_PARAMETER_CHANGE_EVENT_REQUEST_T change_event_request =
                 {
                         {MMAL_PARAMETER_CHANGE_EVENT_REQUEST, sizeof(MMAL_PARAMETER_CHANGE_EVENT_REQUEST_T)},
@@ -497,8 +498,7 @@ int set_all_parameters(MMAL_COMPONENT_T *camera, const CAM_PARAMETERS *params) {
                 };
 
         MMAL_STATUS_T status = mmal_port_parameter_set(camera->control, &change_event_request.hdr);
-        if ( status != MMAL_SUCCESS )
-        {
+        if (status != MMAL_SUCCESS) {
             vcos_log_error("No camera settings events");
         }
 
@@ -507,14 +507,14 @@ int set_all_parameters(MMAL_COMPONENT_T *camera, const CAM_PARAMETERS *params) {
 
     return result;
 }
+
 /**
  * Assign set of default parameters to the passed in parameter block
  *
  * @param state Pointer to parameter block
  *
  */
-void preview_set_defaults(CAM_PREVIEW_PARAMETERS *state)
-{
+void preview_set_defaults(CAM_PREVIEW_PARAMETERS *state) {
     state->wantPreview = 1;
     state->wantFullScreenPreview = 1;
     state->opacity = 255;
@@ -547,9 +547,11 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
         return status;
     }
 
-    status = (MMAL_STATUS_T)set_stereo_mode(camera->output[0], &state->camera_parameters.stereo_mode);
-    status = (MMAL_STATUS_T)(status + (MMAL_STATUS_T)set_stereo_mode(camera->output[1], &state->camera_parameters.stereo_mode));
-    status = (MMAL_STATUS_T)(status + (MMAL_STATUS_T)set_stereo_mode(camera->output[2], &state->camera_parameters.stereo_mode));
+    status = (MMAL_STATUS_T) set_stereo_mode(camera->output[0], &state->camera_parameters.stereo_mode);
+    status = (MMAL_STATUS_T) (status + (MMAL_STATUS_T) set_stereo_mode(camera->output[1],
+                                                                       &state->camera_parameters.stereo_mode));
+    status = (MMAL_STATUS_T) (status + (MMAL_STATUS_T) set_stereo_mode(camera->output[2],
+                                                                       &state->camera_parameters.stereo_mode));
 
     if (status != MMAL_SUCCESS) {
         printf("Could not set stereo mode : error %d", status);
@@ -598,8 +600,8 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
     //  set up the camera configuration
     struct MMAL_PARAMETER_CAMERA_CONFIG_T cam_config{};
     cam_config.hdr = MMAL_PARAMETER_HEADER_T{
-                .id =  MMAL_PARAMETER_CAMERA_CONFIG,
-                .size =  sizeof(cam_config)
+            .id =  MMAL_PARAMETER_CAMERA_CONFIG,
+            .size =  sizeof(cam_config)
     };
     cam_config.max_preview_video_w = state->common_settings.width;
     cam_config.max_preview_video_h = state->common_settings.height;
@@ -638,8 +640,10 @@ MMAL_STATUS_T create_camera_component(CAM_STATE *state) {
     }
 
     format->encoding = MMAL_ENCODING_OPAQUE; // NOLINT(hicpp-signed-bitwise)
-    format->es->video.width = VCOS_ALIGN_UP(state->common_settings.width, 32); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-    format->es->video.height = VCOS_ALIGN_UP(state->common_settings.height, 16); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+    format->es->video.width = VCOS_ALIGN_UP(state->common_settings.width,
+                                            32); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+    format->es->video.height = VCOS_ALIGN_UP(state->common_settings.height,
+                                             16); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
     format->es->video.crop.x = 0;
     format->es->video.crop.y = 0;
     format->es->video.crop.width = state->common_settings.width;
@@ -773,8 +777,10 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
         }
     }
 
-    if (state->encoding == MMAL_ENCODING_H264 && state->slices > 1 && state->common_settings.width <= 1280) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-        int frame_mb_rows = VCOS_ALIGN_UP(state->common_settings.height, 16) >> 4; // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
+    if (state->encoding == MMAL_ENCODING_H264 && state->slices > 1 &&
+        state->common_settings.width <= 1280) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+        int frame_mb_rows = VCOS_ALIGN_UP(state->common_settings.height, 16)
+                >> 4; // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
 
         if (state->slices > frame_mb_rows) //warn user if too many slices selected
         {
@@ -825,12 +831,16 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
         param.hdr.id = MMAL_PARAMETER_PROFILE;
         param.hdr.size = sizeof(param);
 
-        param.profile[0].profile = (MMAL_VIDEO_PROFILE_T)state->profile;
+        param.profile[0].profile = (MMAL_VIDEO_PROFILE_T) state->profile;
 
-        if ((VCOS_ALIGN_UP(state->common_settings.width, 16) >> 4) * // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
-            (VCOS_ALIGN_UP(state->common_settings.height, 16) >> 4) * state->framerate > 245760) { // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
-            if ((VCOS_ALIGN_UP(state->common_settings.width, 16) >> 4) * // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
-                (VCOS_ALIGN_UP(state->common_settings.height, 16) >> 4) * state->framerate <= 522240) { // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
+        if ((VCOS_ALIGN_UP(state->common_settings.width, 16) >> 4) *
+            // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
+            (VCOS_ALIGN_UP(state->common_settings.height, 16) >> 4) * state->framerate >
+            245760) { // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
+            if ((VCOS_ALIGN_UP(state->common_settings.width, 16) >> 4) *
+                // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
+                (VCOS_ALIGN_UP(state->common_settings.height, 16) >> 4) * state->framerate <=
+                522240) { // NOLINT(hicpp-signed-bitwise) (controlled in VCOS library)
                 fprintf(stderr, "Too many macroblocks/s: Increasing H264 Level to 4.2\n");
                 state->level = MMAL_VIDEO_LEVEL_H264_42;
             } else {
@@ -840,7 +850,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
             }
         }
 
-        param.profile[0].level = (MMAL_VIDEO_LEVEL_T)state->level;
+        param.profile[0].level = (MMAL_VIDEO_LEVEL_T) state->level;
 
         status = mmal_port_parameter_set(encoder_output, &param.hdr);
         if (status != MMAL_SUCCESS) {
@@ -891,7 +901,7 @@ MMAL_STATUS_T create_encoder_component(CAM_STATE *state) {
                 param.air_mbs = param.air_ref = param.cir_mbs = param.pir_mbs = 0;
             }
 
-            param.refresh_mode = (MMAL_VIDEO_INTRA_REFRESH_T)state->intra_refresh_type;
+            param.refresh_mode = (MMAL_VIDEO_INTRA_REFRESH_T) state->intra_refresh_type;
 
             //if (state->intra_refresh_type == MMAL_VIDEO_INTRA_REFRESH_CYCLIC_MROWS)
             //   param.cir_mbs = 10;
@@ -955,19 +965,19 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
     /* Create the component */
     status = mmal_component_create(MMAL_COMPONENT_DEFAULT_CAMERA, &camera);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Failed to create camera component");
         if (camera) mmal_component_destroy(camera);
         return status;
     }
 
-    status = (MMAL_STATUS_T)set_stereo_mode(camera->output[0], &state->camera_parameters.stereo_mode);
-    status = (MMAL_STATUS_T)(status + (MMAL_STATUS_T)set_stereo_mode(camera->output[1], &state->camera_parameters.stereo_mode));
-    status = (MMAL_STATUS_T)(status + (MMAL_STATUS_T)set_stereo_mode(camera->output[2], &state->camera_parameters.stereo_mode));
+    status = (MMAL_STATUS_T) set_stereo_mode(camera->output[0], &state->camera_parameters.stereo_mode);
+    status = (MMAL_STATUS_T) (status + (MMAL_STATUS_T) set_stereo_mode(camera->output[1],
+                                                                       &state->camera_parameters.stereo_mode));
+    status = (MMAL_STATUS_T) (status + (MMAL_STATUS_T) set_stereo_mode(camera->output[2],
+                                                                       &state->camera_parameters.stereo_mode));
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Could not set stereo mode : error %d", status);
         if (camera) mmal_component_destroy(camera);
         return status;
@@ -978,25 +988,23 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
 
     status = mmal_port_parameter_set(camera->control, &camera_num.hdr);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Could not select camera : error %d", status);
         if (camera) mmal_component_destroy(camera);
         return status;
     }
 
-    if (!camera->output_num)
-    {
+    if (!camera->output_num) {
         status = MMAL_ENOSYS;
         vcos_log_error("Camera doesn't have output ports");
         if (camera) mmal_component_destroy(camera);
         return status;
     }
 
-    status = mmal_port_parameter_set_uint32(camera->control, MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG, state->common_settings.sensor_mode);
+    status = mmal_port_parameter_set_uint32(camera->control, MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG,
+                                            state->common_settings.sensor_mode);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Could not set sensor mode : error %d", status);
         if (camera) mmal_component_destroy(camera);
         return status;
@@ -1009,8 +1017,7 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
     // Enable the camera, and tell it its control callback function
     status = mmal_port_enable(camera->control, default_camera_control_callback);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Unable to enable control port : error %d", status);
         if (camera) mmal_component_destroy(camera);
         return status;
@@ -1020,21 +1027,20 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
     {
         MMAL_PARAMETER_CAMERA_CONFIG_T cam_config =
                 {
-                        { MMAL_PARAMETER_CAMERA_CONFIG, sizeof(cam_config) },
+                        {MMAL_PARAMETER_CAMERA_CONFIG, sizeof(cam_config)},
                         .max_stills_w = state->common_settings.width,
                         .max_stills_h = state->common_settings.height,
                         .stills_yuv422 = 0,
                         .one_shot_stills = 1,
-                        .max_preview_video_w = (uint32_t)state->preview_parameters.previewWindow.width,
-                        .max_preview_video_h = (uint32_t)state->preview_parameters.previewWindow.height,
+                        .max_preview_video_w = (uint32_t) state->preview_parameters.previewWindow.width,
+                        .max_preview_video_h = (uint32_t) state->preview_parameters.previewWindow.height,
                         .num_preview_video_frames = 3,
                         .stills_capture_circular_buffer_height = 0,
                         .fast_preview_resume = 0,
                         .use_stc_timestamp = MMAL_PARAM_TIMESTAMP_MODE_RESET_STC
                 };
 
-        if (state->fullResPreview)
-        {
+        if (state->fullResPreview) {
             cam_config.max_preview_video_w = state->common_settings.width;
             cam_config.max_preview_video_h = state->common_settings.height;
         }
@@ -1050,38 +1056,38 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
     format->encoding = MMAL_ENCODING_OPAQUE; // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
     format->encoding_variant = MMAL_ENCODING_I420; // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
 
-    if(state->camera_parameters.shutter_speed > 6000000)
-    {
+    if (state->camera_parameters.shutter_speed > 6000000) {
         MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
-                                                { 50, 1000 }, {166, 1000}
+                                                {50,                       1000},
+                                                {166,                      1000}
+        };
+        mmal_port_parameter_set(preview_port, &fps_range.hdr);
+    } else if (state->camera_parameters.shutter_speed > 1000000) {
+        MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
+                                                {166,                      1000},
+                                                {999,                      1000}
         };
         mmal_port_parameter_set(preview_port, &fps_range.hdr);
     }
-    else if(state->camera_parameters.shutter_speed > 1000000)
-    {
-        MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
-                                                { 166, 1000 }, {999, 1000}
-        };
-        mmal_port_parameter_set(preview_port, &fps_range.hdr);
-    }
-    if (state->fullResPreview)
-    {
+    if (state->fullResPreview) {
         // In this mode we are forcing the preview to be generated from the full capture resolution.
         // This runs at a max of 15fps with the OV5647 sensor.
-        format->es->video.width = VCOS_ALIGN_UP(state->common_settings.width, 32); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-        format->es->video.height = VCOS_ALIGN_UP(state->common_settings.height, 16); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+        format->es->video.width = VCOS_ALIGN_UP(state->common_settings.width,
+                                                32); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+        format->es->video.height = VCOS_ALIGN_UP(state->common_settings.height,
+                                                 16); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
         format->es->video.crop.x = 0;
         format->es->video.crop.y = 0;
         format->es->video.crop.width = state->common_settings.width;
         format->es->video.crop.height = state->common_settings.height;
         format->es->video.frame_rate.num = FULL_RES_PREVIEW_FRAME_RATE_NUM;
         format->es->video.frame_rate.den = FULL_RES_PREVIEW_FRAME_RATE_DEN;
-    }
-    else
-    {
+    } else {
         // Use a full FOV 4:3 mode
-        format->es->video.width = VCOS_ALIGN_UP(state->preview_parameters.previewWindow.width, 32); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-        format->es->video.height = VCOS_ALIGN_UP(state->preview_parameters.previewWindow.height, 16); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+        format->es->video.width = VCOS_ALIGN_UP(state->preview_parameters.previewWindow.width,
+                                                32); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+        format->es->video.height = VCOS_ALIGN_UP(state->preview_parameters.previewWindow.height,
+                                                 16); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
         format->es->video.crop.x = 0;
         format->es->video.crop.y = 0;
         format->es->video.crop.width = state->preview_parameters.previewWindow.width;
@@ -1091,8 +1097,7 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
     }
 
     status = mmal_port_format_commit(preview_port);
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("camera viewfinder format couldn't be set");
         if (camera) mmal_component_destroy(camera);
         return status;
@@ -1102,8 +1107,7 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
     mmal_format_full_copy(video_port->format, format);
     status = mmal_port_format_commit(video_port);
 
-    if (status  != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("camera video format couldn't be set");
         if (camera) mmal_component_destroy(camera);
         return status;
@@ -1115,24 +1119,25 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
 
     format = still_port->format;
 
-    if(state->camera_parameters.shutter_speed > 6000000)
-    {
+    if (state->camera_parameters.shutter_speed > 6000000) {
         MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
-                                                { 50, 1000 }, {166, 1000}
+                                                {50,                       1000},
+                                                {166,                      1000}
         };
         mmal_port_parameter_set(still_port, &fps_range.hdr);
-    }
-    else if(state->camera_parameters.shutter_speed > 1000000)
-    {
+    } else if (state->camera_parameters.shutter_speed > 1000000) {
         MMAL_PARAMETER_FPS_RANGE_T fps_range = {{MMAL_PARAMETER_FPS_RANGE, sizeof(fps_range)},
-                                                { 167, 1000 }, {999, 1000}
+                                                {167,                      1000},
+                                                {999,                      1000}
         };
         mmal_port_parameter_set(still_port, &fps_range.hdr);
     }
     // Set our stills format on the stills (for encoder) port
     format->encoding = MMAL_ENCODING_OPAQUE; // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-    format->es->video.width = VCOS_ALIGN_UP(state->common_settings.width, 32); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-    format->es->video.height = VCOS_ALIGN_UP(state->common_settings.height, 16); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+    format->es->video.width = VCOS_ALIGN_UP(state->common_settings.width,
+                                            32); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+    format->es->video.height = VCOS_ALIGN_UP(state->common_settings.height,
+                                             16); // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
     format->es->video.crop.x = 0;
     format->es->video.crop.y = 0;
     format->es->video.crop.width = state->common_settings.width;
@@ -1142,8 +1147,7 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
 
     status = mmal_port_format_commit(still_port);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("camera still format couldn't be set");
         if (camera) mmal_component_destroy(camera);
         return status;
@@ -1156,8 +1160,7 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
     /* Enable component */
     status = mmal_component_enable(camera);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("camera component couldn't be enabled");
         if (camera) mmal_component_destroy(camera);
         return status;
@@ -1169,7 +1172,7 @@ MMAL_STATUS_T create_still_camera_component(CAM_STATE *state) {
     state->preview_parameters.camera_preview_port = preview_port;
 
     if (state->common_settings.verbose)
-        vcos_log_info( "Camera component done\n");
+        vcos_log_info("Camera component done\n");
 
     return status;
 }
@@ -1189,14 +1192,12 @@ MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state) {
 
     status = mmal_component_create(MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER, &encoder);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Unable to create JPEG encoder component");
         goto error;
     }
 
-    if (!encoder->input_num || !encoder->output_num)
-    {
+    if (!encoder->input_num || !encoder->output_num) {
         status = MMAL_ENOSYS;
         vcos_log_error("JPEG encoder doesn't have input/output ports");
         goto error;
@@ -1224,8 +1225,7 @@ MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state) {
     // Commit the port changes to the output port
     status = mmal_port_format_commit(encoder_output);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Unable to set format on video encoder output port");
         goto error;
     }
@@ -1233,28 +1233,27 @@ MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state) {
     // Set the JPEG quality level
     status = mmal_port_parameter_set_uint32(encoder_output, MMAL_PARAMETER_JPEG_Q_FACTOR, state->quality);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Unable to set JPEG quality");
         goto error;
     }
 
     // Set the JPEG restart interval
-    status = mmal_port_parameter_set_uint32(encoder_output, MMAL_PARAMETER_JPEG_RESTART_INTERVAL, state->restart_interval);
+    status = mmal_port_parameter_set_uint32(encoder_output, MMAL_PARAMETER_JPEG_RESTART_INTERVAL,
+                                            state->restart_interval);
 
-    if (state->restart_interval && status != MMAL_SUCCESS)
-    {
+    if (state->restart_interval && status != MMAL_SUCCESS) {
         vcos_log_error("Unable to set JPEG restart interval");
         goto error;
     }
 
     // Set up any required thumbnail
     {
-        MMAL_PARAMETER_THUMBNAIL_CONFIG_T param_thumb = {{MMAL_PARAMETER_THUMBNAIL_CONFIGURATION, sizeof(MMAL_PARAMETER_THUMBNAIL_CONFIG_T)}, 0, 0, 0, 0};
+        MMAL_PARAMETER_THUMBNAIL_CONFIG_T param_thumb = {
+                {MMAL_PARAMETER_THUMBNAIL_CONFIGURATION, sizeof(MMAL_PARAMETER_THUMBNAIL_CONFIG_T)}, 0, 0, 0, 0};
 
-        if ( state->thumbnailConfig.enable &&
-             state->thumbnailConfig.width > 0 && state->thumbnailConfig.height > 0 )
-        {
+        if (state->thumbnailConfig.enable &&
+            state->thumbnailConfig.width > 0 && state->thumbnailConfig.height > 0) {
             // Have a valid thumbnail defined
             param_thumb.enable = 1;
             param_thumb.width = state->thumbnailConfig.width;
@@ -1267,8 +1266,7 @@ MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state) {
     //  Enable component
     status = mmal_component_enable(encoder);
 
-    if (status  != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Unable to enable video encoder component");
         goto error;
     }
@@ -1276,8 +1274,7 @@ MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state) {
     /* Create pool of buffer headers for the output port to consume */
     pool = mmal_port_pool_create(encoder_output, encoder_output->buffer_num, encoder_output->buffer_size);
 
-    if (!pool)
-    {
+    if (!pool) {
         vcos_log_error("Failed to create buffer header pool for encoder output port %s", encoder_output->name);
     }
 
@@ -1287,7 +1284,7 @@ MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state) {
     state->still_encoder_input_port = encoder_input;
 
     if (state->common_settings.verbose)
-        vcos_log_info( "Encoder component done\n");
+        vcos_log_info("Encoder component done\n");
 
     return status;
 
@@ -1358,8 +1355,7 @@ void camcontrol_set_defaults(CAM_PARAMETERS *params) {
  * @param state Pointer to state structure to assign defaults to
  */
 int default_still_state(CAM_STATE *state) {
-    if (!state)
-    {
+    if (!state) {
         vcos_assert(0);
         return -1;
     }
@@ -1383,7 +1379,7 @@ int default_still_state(CAM_STATE *state) {
     state->timelapse = 0;
     state->fullResPreview = 0;
     state->frameNextMethod = FRAME_NEXT_SINGLE;
-    state->burstCaptureMode=0;
+    state->burstCaptureMode = 0;
     state->timestamp = 0;
     state->restart_interval = 0;
 
@@ -1409,30 +1405,24 @@ MMAL_STATUS_T preview_create(CAM_PREVIEW_PARAMETERS *state) {
     MMAL_PORT_T *preview_port = nullptr;
     MMAL_STATUS_T status;
 
-    if (!state->wantPreview)
-    {
+    if (!state->wantPreview) {
         // No preview required, so create a null sink component to take its place
         status = mmal_component_create("vc.null_sink", &preview);
 
-        if (status != MMAL_SUCCESS)
-        {
+        if (status != MMAL_SUCCESS) {
             vcos_log_error("Unable to create null sink component");
             goto error;
         }
-    }
-    else
-    {
+    } else {
         status = mmal_component_create(MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER,
                                        &preview);
 
-        if (status != MMAL_SUCCESS)
-        {
+        if (status != MMAL_SUCCESS) {
             vcos_log_error("Unable to create preview component");
             goto error;
         }
 
-        if (!preview->input_num)
-        {
+        if (!preview->input_num) {
             status = MMAL_ENOSYS;
             vcos_log_error("No input ports found on component");
             goto error;
@@ -1450,22 +1440,18 @@ MMAL_STATUS_T preview_create(CAM_PREVIEW_PARAMETERS *state) {
         param.set |= MMAL_DISPLAY_SET_ALPHA;
         param.alpha = state->opacity;
 
-        if (state->wantFullScreenPreview)
-        {
+        if (state->wantFullScreenPreview) {
             param.set |= MMAL_DISPLAY_SET_FULLSCREEN;
             param.fullscreen = 1;
-        }
-        else
-        {
-            param.set |= (uint32_t)(MMAL_DISPLAY_SET_DEST_RECT | MMAL_DISPLAY_SET_FULLSCREEN);
+        } else {
+            param.set |= (uint32_t) (MMAL_DISPLAY_SET_DEST_RECT | MMAL_DISPLAY_SET_FULLSCREEN);
             param.fullscreen = 0;
             param.dest_rect = state->previewWindow;
         }
 
         status = mmal_port_parameter_set(preview_port, &param.hdr);
 
-        if (status != MMAL_SUCCESS && status != MMAL_ENOSYS)
-        {
+        if (status != MMAL_SUCCESS && status != MMAL_ENOSYS) {
             vcos_log_error("unable to set preview port parameters (%u)", status);
             goto error;
         }
@@ -1474,8 +1460,7 @@ MMAL_STATUS_T preview_create(CAM_PREVIEW_PARAMETERS *state) {
     /* Enable component */
     status = mmal_component_enable(preview);
 
-    if (status != MMAL_SUCCESS)
-    {
+    if (status != MMAL_SUCCESS) {
         vcos_log_error("Unable to enable preview/null sink component (%u)", status);
         goto error;
     }
@@ -1499,10 +1484,8 @@ MMAL_STATUS_T preview_create(CAM_PREVIEW_PARAMETERS *state) {
  * @param state Pointer to state control struct
  *
  */
-void preview_destroy(CAM_PREVIEW_PARAMETERS *state)
-{
-    if (state->preview_component)
-    {
+void preview_destroy(CAM_PREVIEW_PARAMETERS *state) {
+    if (state->preview_component) {
         mmal_component_destroy(state->preview_component);
         state->preview_component = nullptr;
     }
@@ -1630,7 +1613,7 @@ void get_sensor_defaults(int camera_num, char *camera_name, uint32_t *width, uin
 
         mmal_component_destroy(camera_info);
     } else {
-       vcos_log_error("Failed to create camera_info component");
+        vcos_log_error("Failed to create camera_info component");
     }
 
     // default to OV5647 if nothing detected..
@@ -1662,10 +1645,10 @@ void check_camera_model(int cam_num) {
             status = mmal_port_parameter_get(camera_info->control, &param.hdr);
             if (status == MMAL_SUCCESS && param.num_cameras > cam_num) {
                 if (!strncmp(param.cameras[cam_num].camera_name, "toshh2c", 7)) {
-                    vcos_log_error( "The driver for the TC358743 HDMI to CSI2 chip you are using is NOT supported.\n");
+                    vcos_log_error("The driver for the TC358743 HDMI to CSI2 chip you are using is NOT supported.\n");
                     vcos_log_error(
                             "They were written for a demo purposes only, and are in the firmware on an as-is\n");
-                    vcos_log_error( "basis and therefore requests for support or changes will not be acted on.\n\n");
+                    vcos_log_error("basis and therefore requests for support or changes will not be acted on.\n\n");
                 }
             }
         }
@@ -1862,8 +1845,8 @@ int wait_for_next_change(CAM_STATE *state) {
             char ch;
 
             if (state->common_settings.verbose)
-                vcos_log_info( "Press Enter to %s, X then ENTER to exit, [i,o,r] then ENTER to change zoom\n",
-                        state->bCapturing ? "pause" : "capture");
+                vcos_log_info("Press Enter to %s, X then ENTER to exit, [i,o,r] then ENTER to change zoom\n",
+                              state->bCapturing ? "pause" : "capture");
 
             ch = getchar();
             if (ch == 'x' || ch == 'X')
@@ -1878,7 +1861,7 @@ int wait_for_next_change(CAM_STATE *state) {
                 zoom_in_zoom_out(state->camera_component, ZOOM_OUT, &(state->camera_parameters).roi);
             } else if (ch == 'r' || ch == 'R') {
                 if (state->common_settings.verbose)
-                    vcos_log_info( "starting reset zoom\n");
+                    vcos_log_info("starting reset zoom\n");
 
                 zoom_in_zoom_out(state->camera_component, ZOOM_RESET, &(state->camera_parameters).roi);
             }
@@ -1901,13 +1884,13 @@ int wait_for_next_change(CAM_STATE *state) {
             pthread_sigmask(SIG_BLOCK, &waitset, nullptr);
 
             if (state->common_settings.verbose) {
-                vcos_log_info( "Waiting for SIGUSR1 to %s\n", state->bCapturing ? "pause" : "capture");
+                vcos_log_info("Waiting for SIGUSR1 to %s\n", state->bCapturing ? "pause" : "capture");
             }
 
             result = sigwait(&waitset, &sig);
 
             if (state->common_settings.verbose && result != 0)
-                vcos_log_error( "Bad signal received - error %d\n", errno);
+                vcos_log_error("Bad signal received - error %d\n", errno);
 
             return keep_running;
         }
@@ -1927,7 +1910,7 @@ MMAL_STATUS_T capture(CAM_STATE *state) {
 
     int num = mmal_queue_length(state->video_encoder_pool->queue);
     int q;
-    for (q=0; q<num; q++) {
+    for (q = 0; q < num; q++) {
         MMAL_BUFFER_HEADER_T *buffer = mmal_queue_get(state->video_encoder_pool->queue);
 
         if (!buffer) {
@@ -1935,7 +1918,7 @@ MMAL_STATUS_T capture(CAM_STATE *state) {
             return MMAL_ENOSPC;
         }
 
-        if (mmal_port_send_buffer(state->video_encoder_output_port, buffer)!= MMAL_SUCCESS) {
+        if (mmal_port_send_buffer(state->video_encoder_output_port, buffer) != MMAL_SUCCESS) {
             vcos_log_error("Unable to send a buffer to encoder output port (%d)", q);
             return MMAL_ENOSPC;
         }
@@ -1952,19 +1935,19 @@ MMAL_STATUS_T capture(CAM_STATE *state) {
             return status;
         }
 
-        if(state->splitWait) {
-            if(state->bCapturing) {
-                status = mmal_port_parameter_set_boolean(state->video_encoder_output_port, MMAL_PARAMETER_VIDEO_REQUEST_I_FRAME, 1);
+        if (state->splitWait) {
+            if (state->bCapturing) {
+                status = mmal_port_parameter_set_boolean(state->video_encoder_output_port,
+                                                         MMAL_PARAMETER_VIDEO_REQUEST_I_FRAME, 1);
                 if (status != MMAL_SUCCESS) {
                     vcos_log_error("failed to request I-FRAME");
                     return status;
                 }
+            } else {
+                if (!initialCapturing)
+                    state->splitNow = 1;
             }
-            else {
-                if(!initialCapturing)
-                    state->splitNow=1;
-            }
-            initialCapturing=0;
+            initialCapturing = 0;
         }
         // by default, will wait for timeout to have expired
         running = wait_for_next_change(state);
@@ -1982,26 +1965,24 @@ int wait_for_next_frame(CAM_STATE *state, int *frame) {
     static int64_t complete_time = -1;
     int keep_running = 1;
 
-    int64_t current_time =  get_microseconds64()/1000;
+    int64_t current_time = get_microseconds64() / 1000;
 
     if (complete_time == -1)
-        complete_time =  current_time + state->timeout;
+        complete_time = current_time + state->timeout;
 
     // if we have run out of time, flag we need to exit
     // If timeout = 0 then always continue
     if (current_time >= complete_time && state->timeout != 0)
         keep_running = 0;
 
-    switch (state->frameNextMethod)
-    {
+    switch (state->frameNextMethod) {
         case FRAME_NEXT_SINGLE :
             // simple timeout for a single capture
             vcos_sleep(state->timeout);
             return 0;
 
-        case FRAME_NEXT_FOREVER :
-        {
-            *frame+=1;
+        case FRAME_NEXT_FOREVER : {
+            *frame += 1;
 
             // Have a sleep so we don't hog the CPU.
             vcos_sleep(1000);
@@ -2010,48 +1991,38 @@ int wait_for_next_frame(CAM_STATE *state, int *frame) {
             return 1;
         }
 
-        case FRAME_NEXT_TIMELAPSE :
-        {
+        case FRAME_NEXT_TIMELAPSE : {
             static int64_t next_frame_ms = -1;
 
             // Always need to increment by at least one, may add a skip later
             *frame += 1;
 
-            if (next_frame_ms == -1)
-            {
+            if (next_frame_ms == -1) {
                 vcos_sleep(CAMERA_SETTLE_TIME);
 
                 // Update our current time after the sleep
-                current_time =  get_microseconds64()/1000;
+                current_time = get_microseconds64() / 1000;
 
                 // Set our initial 'next frame time'
                 next_frame_ms = current_time + state->timelapse;
-            }
-            else
-            {
+            } else {
                 int64_t this_delay_ms = next_frame_ms - current_time;
 
-                if (this_delay_ms < 0)
-                {
+                if (this_delay_ms < 0) {
                     // We are already past the next exposure time
-                    if (-this_delay_ms < state->timelapse/2)
-                    {
+                    if (-this_delay_ms < state->timelapse / 2) {
                         // Less than a half frame late, take a frame and hope to catch up next time
                         next_frame_ms += state->timelapse;
-                        vcos_log_info("Frame %d is %d ms late", *frame, (int)(-this_delay_ms));
-                    }
-                    else
-                    {
-                        int nskip = 1 + (-this_delay_ms)/state->timelapse;
-                        vcos_log_info("Skipping frame %d to restart at frame %d", *frame, *frame+nskip);
+                        vcos_log_info("Frame %d is %d ms late", *frame, (int) (-this_delay_ms));
+                    } else {
+                        int nskip = 1 + (-this_delay_ms) / state->timelapse;
+                        vcos_log_info("Skipping frame %d to restart at frame %d", *frame, *frame + nskip);
                         *frame += nskip;
                         this_delay_ms += nskip * state->timelapse;
                         vcos_sleep(this_delay_ms);
                         next_frame_ms += (nskip + 1) * state->timelapse;
                     }
-                }
-                else
-                {
+                } else {
                     vcos_sleep(this_delay_ms);
                     next_frame_ms += state->timelapse;
                 }
@@ -2060,25 +2031,22 @@ int wait_for_next_frame(CAM_STATE *state, int *frame) {
             return keep_running;
         }
 
-        case FRAME_NEXT_KEYPRESS :
-        {
+        case FRAME_NEXT_KEYPRESS : {
             int ch;
 
             if (state->common_settings.verbose)
-                vcos_log_info( "Press Enter to capture, X then ENTER to exit\n");
+                vcos_log_info("Press Enter to capture, X then ENTER to exit\n");
 
             ch = getchar();
-            *frame+=1;
+            *frame += 1;
             if (ch == 'x' || ch == 'X')
                 return 0;
-            else
-            {
+            else {
                 return keep_running;
             }
         }
 
-        case FRAME_NEXT_IMMEDIATELY :
-        {
+        case FRAME_NEXT_IMMEDIATELY : {
             // Not waiting, just go to next frame.
             // Actually, we do need a slight delay here otherwise exposure goes
             // badly wrong since we never allow it frames to work it out
@@ -2089,60 +2057,51 @@ int wait_for_next_frame(CAM_STATE *state, int *frame) {
             else
                 vcos_sleep(30);
 
-            *frame+=1;
+            *frame += 1;
 
             return keep_running;
         }
 
-        case FRAME_NEXT_GPIO :
-        {
+        case FRAME_NEXT_GPIO : {
             // Intended for GPIO firing of a capture
             return 0;
         }
 
-        case FRAME_NEXT_SIGNAL :
-        {
+        case FRAME_NEXT_SIGNAL : {
             // Need to wait for a SIGUSR1 or SIGUSR2 signal
             sigset_t waitset;
             int sig;
             int result = 0;
 
-            sigemptyset( &waitset );
-            sigaddset( &waitset, SIGUSR1 );
-            sigaddset( &waitset, SIGUSR2 );
+            sigemptyset(&waitset);
+            sigaddset(&waitset, SIGUSR1);
+            sigaddset(&waitset, SIGUSR2);
 
             // We are multi threaded because we use mmal, so need to use the pthread
             // variant of procmask to block until a SIGUSR1 or SIGUSR2 signal appears
-            pthread_sigmask( SIG_BLOCK, &waitset, nullptr );
+            pthread_sigmask(SIG_BLOCK, &waitset, nullptr);
 
-            if (state->common_settings.verbose)
-            {
-                vcos_log_info( "Waiting for SIGUSR1 to initiate capture and continue or SIGUSR2 to capture and exit\n");
+            if (state->common_settings.verbose) {
+                vcos_log_info("Waiting for SIGUSR1 to initiate capture and continue or SIGUSR2 to capture and exit\n");
             }
 
-            result = sigwait( &waitset, &sig );
+            result = sigwait(&waitset, &sig);
 
-            if (result == 0)
-            {
-                if (sig == SIGUSR1)
-                {
+            if (result == 0) {
+                if (sig == SIGUSR1) {
                     if (state->common_settings.verbose)
-                        vcos_log_info( "Received SIGUSR1\n");
-                }
-                else if (sig == SIGUSR2)
-                {
+                        vcos_log_info("Received SIGUSR1\n");
+                } else if (sig == SIGUSR2) {
                     if (state->common_settings.verbose)
-                        vcos_log_info( "Received SIGUSR2\n");
+                        vcos_log_info("Received SIGUSR2\n");
                     keep_running = 0;
                 }
-            }
-            else
-            {
+            } else {
                 if (state->common_settings.verbose)
-                    vcos_log_error( "Bad signal received - error %d\n", errno);
+                    vcos_log_error("Bad signal received - error %d\n", errno);
             }
 
-            *frame+=1;
+            *frame += 1;
 
             return keep_running;
         }
@@ -2172,16 +2131,14 @@ MMAL_STATUS_T capture_still(CAM_STATE *state, StillCallback still_cb) {
         vcos_log_error("%s: failed to create semaphore", __func__);
     }
 
-    while (keep_looping)
-    {
+    while (keep_looping) {
         if (state->common_settings.verbose)
-            vcos_log_info( "waiting for next frame\n");
+            vcos_log_info("waiting for next frame\n");
 
         keep_looping = wait_for_next_frame(state, &frame);
 
-        if (state->timestamp)
-        {
-            frame = (int)time(nullptr);
+        if (state->timestamp) {
+            frame = (int) time(nullptr);
         }
 
         // We only capture if a filename was specified and it opened
@@ -2189,73 +2146,67 @@ MMAL_STATUS_T capture_still(CAM_STATE *state, StillCallback still_cb) {
             int num, q;
 
             if (state->common_settings.verbose)
-                vcos_log_info( "disabling exif\n");
+                vcos_log_info("disabling exif\n");
             mmal_port_parameter_set_boolean(
                     state->still_encoder_component->output[0], MMAL_PARAMETER_EXIF_DISABLE, 1);
 
             // Same with raw, apparently need to set it for each capture, whilst port
             // is not enabled
-            if (state->wantRAW)
-            {
+            if (state->wantRAW) {
                 if (mmal_port_parameter_set_boolean(
-                        state->camera_still_port, MMAL_PARAMETER_ENABLE_RAW_CAPTURE, 1) != MMAL_SUCCESS)
-                {
+                        state->camera_still_port, MMAL_PARAMETER_ENABLE_RAW_CAPTURE, 1) != MMAL_SUCCESS) {
                     vcos_log_error("RAW was requested, but failed to enable");
                 }
             }
 
             // There is a possibility that shutter needs to be set each loop.
             if (state->common_settings.verbose)
-                vcos_log_info( "setting shutter speed\n");
+                vcos_log_info("setting shutter speed\n");
             if ((mmal_port_parameter_set_uint32(state->camera_component->control,
-                                                                  MMAL_PARAMETER_SHUTTER_SPEED, state->camera_parameters.shutter_speed)) != MMAL_SUCCESS)
+                                                MMAL_PARAMETER_SHUTTER_SPEED,
+                                                state->camera_parameters.shutter_speed)) != MMAL_SUCCESS)
                 vcos_log_error("Unable to set shutter speed");
 
             // Enable the encoder output port
-            state->still_encoder_output_port->userdata = (struct MMAL_PORT_USERDATA_T *)&state->callback_data;
+            state->still_encoder_output_port->userdata = (struct MMAL_PORT_USERDATA_T *) &state->callback_data;
 
             if (state->common_settings.verbose)
-                vcos_log_info( "Enabling encoder output port\n");
+                vcos_log_info("Enabling encoder output port\n");
 
             // Enable the encoder output port and tell it its callback function
             status = mmal_port_enable(state->still_encoder_output_port, still_encoder_buffer_callback);
 
             // Send all the buffers to the encoder output port
-            num = (uint)mmal_queue_length(state->encoder_pool->queue);
+            num = (uint) mmal_queue_length(state->encoder_pool->queue);
 
-            for (q=0; q<num; q++)
-            {
+            for (q = 0; q < num; q++) {
                 MMAL_BUFFER_HEADER_T *buffer = mmal_queue_get(state->encoder_pool->queue);
 
                 if (!buffer)
                     vcos_log_error("Unable to get a required buffer %d from pool queue", q);
 
-                if (mmal_port_send_buffer(state->still_encoder_output_port, buffer)!= MMAL_SUCCESS)
+                if (mmal_port_send_buffer(state->still_encoder_output_port, buffer) != MMAL_SUCCESS)
                     vcos_log_error("Unable to send a buffer to encoder output port (%d)", q);
             }
 
-            if (state->burstCaptureMode)
-            {
+            if (state->burstCaptureMode) {
                 mmal_port_parameter_set_boolean(
-                        state->camera_component->control,  MMAL_PARAMETER_CAMERA_BURST_CAPTURE, 1);
+                        state->camera_component->control, MMAL_PARAMETER_CAMERA_BURST_CAPTURE, 1);
             }
 
             if (state->common_settings.verbose)
-                vcos_log_info( "Starting capture %d\n", frame);
+                vcos_log_info("Starting capture %d\n", frame);
 
             if (mmal_port_parameter_set_boolean(
-                    state->camera_still_port, MMAL_PARAMETER_CAPTURE, 1) != MMAL_SUCCESS)
-            {
+                    state->camera_still_port, MMAL_PARAMETER_CAPTURE, 1) != MMAL_SUCCESS) {
                 vcos_log_error("%s: Failed to start capture", __func__);
-            }
-            else
-            {
+            } else {
                 // Wait for capture to complete
                 // For some reason using vcos_semaphore_wait_timeout sometimes returns immediately with bad parameter error
                 // even though it appears to be all correct, so reverting to untimed one until figure out why its erratic
                 vcos_semaphore_wait(&state->callback_data.complete_semaphore);
                 if (state->common_settings.verbose)
-                    vcos_log_info( "Finished capture %d\n", frame);
+                    vcos_log_info("Finished capture %d\n", frame);
             }
 
             // Disable encoder output port
@@ -2303,7 +2254,7 @@ MMAL_STATUS_T init(CAM_STATE *state) {
     }
 
     // Set up our userdata - this is passed though to the callback where we need the information.
-    (state->video_encoder_output_port)->userdata = (struct MMAL_PORT_USERDATA_T *)&state->callback_data;
+    (state->video_encoder_output_port)->userdata = (struct MMAL_PORT_USERDATA_T *) &state->callback_data;
     // Enable the encoder output port and tell it its callback function
     status = mmal_port_enable(state->video_encoder_output_port, encoder_buffer_callback);
 
@@ -2321,7 +2272,7 @@ MMAL_STATUS_T init(CAM_STATE *state) {
  */
 MMAL_STATUS_T init_still(CAM_STATE *state) {
     MMAL_STATUS_T status;
-    
+
     bcm_host_init();
 
     // Setup for sensor specific parameters
@@ -2356,30 +2307,31 @@ MMAL_STATUS_T init_still(CAM_STATE *state) {
     callback_data.image_data_length = 0;
 
     if (state->common_settings.verbose)
-        vcos_log_info( "Starting component connection stage\n");
+        vcos_log_info("Starting component connection stage\n");
 
     state->preview_parameters.camera_preview_port = state->camera_component->output[MMAL_CAMERA_PREVIEW_PORT];
-    state->camera_video_port   = state->camera_component->output[MMAL_CAMERA_VIDEO_PORT];
-    state->camera_still_port   = state->camera_component->output[MMAL_CAMERA_CAPTURE_PORT];
-    state->still_encoder_input_port  = state->still_encoder_component->input[0];
+    state->camera_video_port = state->camera_component->output[MMAL_CAMERA_VIDEO_PORT];
+    state->camera_still_port = state->camera_component->output[MMAL_CAMERA_CAPTURE_PORT];
+    state->still_encoder_input_port = state->still_encoder_component->input[0];
     state->still_encoder_output_port = state->still_encoder_component->output[0];
 
     if (state->common_settings.verbose)
-        vcos_log_info( "Connecting camera preview port to video render.\n");
+        vcos_log_info("Connecting camera preview port to video render.\n");
 
     // Note we are lucky that the preview and null sink components use the same input port
     // so we can simple do this without conditionals
-    state->preview_parameters.camera_preview_input_port  = state->preview_parameters.preview_component->input[0];
+    state->preview_parameters.camera_preview_input_port = state->preview_parameters.preview_component->input[0];
 
     // Connect camera to preview (which might be a null_sink if no preview required)
     if ((status = connect_ports(state->preview_parameters.camera_preview_port,
-                                state->preview_parameters.camera_preview_input_port, &state->preview_connection)) != MMAL_SUCCESS) {
+                                state->preview_parameters.camera_preview_input_port, &state->preview_connection)) !=
+        MMAL_SUCCESS) {
         vcos_log_error("%s: failed to connect camera to preview: %s", __func__, mmal_status_to_string(status));
         return status;
     }
 
     if (state->common_settings.verbose)
-        vcos_log_info( "connecting camera still port to encoder input port\n");
+        vcos_log_info("connecting camera still port to encoder input port\n");
 
     // Now connect the camera to the encoder
     if ((status = connect_ports(state->camera_still_port,
@@ -2421,20 +2373,21 @@ void destroy(CAM_STATE *state) {
  */
 void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
     MMAL_BUFFER_HEADER_T *new_buffer;
-    static int64_t base_time =  -1;
+    static int64_t base_time = -1;
 
     // All our segment times based on the receipt of the first encoder callback
     if (base_time == -1)
-        base_time = get_microseconds64()/1000;
+        base_time = get_microseconds64() / 1000;
 
     // We pass our file handle and other stuff in via the userdata field.
-    auto *pData = (PORT_USERDATA *)port->userdata;
+    auto *pData = (PORT_USERDATA *) port->userdata;
 
     if (pData) {
         int bytes_written = buffer->length;
-        int64_t current_time = get_microseconds64()/1000;
+        int64_t current_time = get_microseconds64() / 1000;
 
-        if ((buffer->flags & MMAL_BUFFER_HEADER_FLAG_CONFIG) && // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+        if ((buffer->flags & MMAL_BUFFER_HEADER_FLAG_CONFIG) &&
+            // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
             ((pData->pstate->segmentSize && current_time > base_time + pData->pstate->segmentSize) ||
              (pData->pstate->splitWait && pData->pstate->splitNow))) {
             // increase segment??
@@ -2451,24 +2404,29 @@ void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
             mmal_buffer_header_mem_lock(buffer);
 
             // deal with any 'side information' (only IMV's in our case)
-            if(buffer->flags & MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-                if(pData->pstate->inlineMotionVectors) {
+            if (buffer->flags &
+                MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+                if (pData->pstate->inlineMotionVectors) {
                     vcos_log_info("*** IMV of length %i\n", buffer->length);
                 } else {
                     bytes_written = buffer->length;
                 }
             } else {
                 /* a frame has ended */
-                if((buffer->flags & MMAL_BUFFER_HEADER_FLAG_FRAME_END || buffer->flags == 0 || // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-                    /* is a keyframe (i.e., standalone) */
-                    buffer->flags & MMAL_BUFFER_HEADER_FLAG_KEYFRAME) && // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
-                   /* contains config data (codec data) */
-                   !(buffer->flags & MMAL_BUFFER_HEADER_FLAG_CONFIG)) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+                if ((buffer->flags & MMAL_BUFFER_HEADER_FLAG_FRAME_END || buffer->flags == 0 ||
+                     // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+                     /* is a keyframe (i.e., standalone) */
+                     buffer->flags & MMAL_BUFFER_HEADER_FLAG_KEYFRAME) &&
+                    // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+                    /* contains config data (codec data) */
+                    !(buffer->flags &
+                      MMAL_BUFFER_HEADER_FLAG_CONFIG)) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
                     // must be specified time? and not the same time?
-                    if(buffer->pts != MMAL_TIME_UNKNOWN && buffer->pts != pData->pstate->lasttime) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+                    if (buffer->pts != MMAL_TIME_UNKNOWN && buffer->pts !=
+                                                            pData->pstate->lasttime) { // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
                         int64_t pts;
-                        if(pData->pstate->frame==0)pData->pstate->starttime=buffer->pts;
-                        pData->pstate->lasttime=buffer->pts;
+                        if (pData->pstate->frame == 0)pData->pstate->starttime = buffer->pts;
+                        pData->pstate->lasttime = buffer->pts;
                         pts = buffer->pts - pData->pstate->starttime;
 
                         // callback to handle frame data
@@ -2495,8 +2453,7 @@ void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
     mmal_buffer_header_release(buffer);
 
     // and send one back to the port (if still open)
-    if (port->is_enabled)
-    {
+    if (port->is_enabled) {
         MMAL_STATUS_T status;
 
         new_buffer = mmal_queue_get(pData->pstate->video_encoder_pool->queue);
@@ -2520,25 +2477,23 @@ void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
 void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
     int complete = 0;
 
-    auto *pData = (PORT_USERDATA *)port->userdata;
+    auto *pData = (PORT_USERDATA *) port->userdata;
 
-    if (pData)
-    {
+    if (pData) {
         int bytes_written = buffer->length;
 
-        if (buffer->length)
-        {
+        if (buffer->length) {
             mmal_buffer_header_mem_lock(buffer);
 
             if (pData->image_data == nullptr) {
                 // start a new image
-                pData->image_data = (uint8_t *)malloc(sizeof(uint8_t) * buffer->length);
+                pData->image_data = (uint8_t *) malloc(sizeof(uint8_t) * buffer->length);
                 memcpy(pData->image_data, buffer->data, buffer->length);
                 pData->image_data_length = buffer->length;
             } else {
                 // continue building the current image
-                pData->image_data = (uint8_t *)realloc(pData->image_data,
-                        sizeof(uint8_t) * (buffer->length + pData->image_data_length));
+                pData->image_data = (uint8_t *) realloc(pData->image_data,
+                                                        sizeof(uint8_t) * (buffer->length + pData->image_data_length));
                 memcpy(&(pData->image_data)[pData->image_data_length], buffer->data, buffer->length);
                 pData->image_data_length = buffer->length + pData->image_data_length;
             }
@@ -2547,18 +2502,16 @@ void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buff
         }
 
         // We need to check we wrote what we wanted - it's possible we have run out of storage.
-        if (bytes_written != buffer->length)
-        {
+        if (bytes_written != buffer->length) {
             vcos_log_error("Unable to write buffer to file - aborting");
             complete = 1;
         }
 
         // Now flag if we have completed
-        if (buffer->flags & (MMAL_BUFFER_HEADER_FLAG_FRAME_END | MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)) // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
+        if (buffer->flags & (MMAL_BUFFER_HEADER_FLAG_FRAME_END |
+                             MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)) // NOLINT(hicpp-signed-bitwise) (controlled in MMAL library)
             complete = 1;
-    }
-    else
-    {
+    } else {
         vcos_log_error("Received a encoder buffer callback with no state");
     }
 
@@ -2566,15 +2519,13 @@ void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buff
     mmal_buffer_header_release(buffer);
 
     // and send one back to the port (if still open)
-    if (port->is_enabled)
-    {
+    if (port->is_enabled) {
         MMAL_STATUS_T status = MMAL_SUCCESS;
         MMAL_BUFFER_HEADER_T *new_buffer;
 
         new_buffer = mmal_queue_get(pData->pstate->encoder_pool->queue);
 
-        if (new_buffer)
-        {
+        if (new_buffer) {
             status = mmal_port_send_buffer(port, new_buffer);
         }
         if (!new_buffer || status != MMAL_SUCCESS)
@@ -2596,9 +2547,9 @@ void still_encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buff
  * Destroys all components of the still camera.
  * @param state
  */
-void destroy_still(CAM_STATE* state) {
+void destroy_still(CAM_STATE *state) {
     if (state->common_settings.verbose)
-        vcos_log_info( "Closing down\n");
+        vcos_log_info("Closing down\n");
 
     // Disable all our ports that are not handled by connections
     check_disable_port(state->camera_video_port);

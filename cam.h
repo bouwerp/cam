@@ -15,7 +15,7 @@
 #include <arpa/inet.h>
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
 #ifndef CAM_H
@@ -110,10 +110,9 @@ typedef struct param_float_rect_s {
     double h;
 } PARAM_FLOAT_RECT_T;
 
-typedef struct mmal_param_thumbnail_config_s
-{
+typedef struct mmal_param_thumbnail_config_s {
     int enable;
-    int width,height;
+    int width, height;
     int quality;
 } MMAL_PARAM_THUMBNAIL_CONFIG_T;
 
@@ -142,8 +141,7 @@ typedef struct {
 } PORT_USERDATA;
 
 /// Frame advance method
-enum
-{
+enum {
     FRAME_NEXT_SINGLE,
     FRAME_NEXT_TIMELAPSE,
     FRAME_NEXT_KEYPRESS,
@@ -186,8 +184,7 @@ typedef struct cam_parameters_s {
     int settings;
 } CAM_PARAMETERS;
 
-typedef struct
-{
+typedef struct {
     int wantPreview;                       /// Display a preview
     int wantFullScreenPreview;             /// 0 is use previewRect, non-zero to use full screen
     int opacity;                           /// Opacity of window - 0 = transparent, 255 = opaque
@@ -387,7 +384,7 @@ MMAL_STATUS_T preview_create(CAM_PREVIEW_PARAMETERS *state);
 
 void preview_destroy(CAM_PREVIEW_PARAMETERS *state);
 
-void destroy_still(CAM_STATE*);
+void destroy_still(CAM_STATE *);
 
 #endif //CAM_H
 
