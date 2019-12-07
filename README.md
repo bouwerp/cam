@@ -2,6 +2,9 @@
 
 Camera library, based on Raspicam (which utilises Broadcom's MMAL libraries), for use in Raspberry Pi C/C++ projects.
 
+The code was directly copied from the Raspicam source code, and stripped down and cleaned up to what was necessary at the time I needed it. 
+It has also been ported to C++ (17).
+
 # Building dependencies
 
 ## Raspberry Pi _userland_
@@ -46,6 +49,26 @@ make -j 16
 
 # Example usage
 
+Include paths for CMake:
+```
+<SOURCE_CODE_BASE_PATH>/cam/include
+<SOURCE_CODE_BASE_PATH>/userland
+```
+
+The libraries that are needed for loading in the CMake build definition:
+```
+cam
+mmal
+mmal_util
+mmal_core
+mmal_components
+mmal_vc_client
+vcos
+bcm_host
+vchiq_arm
+pthread
+```
+
 ```cpp
 CAM_STATE mState{};
 uint mWidth;
@@ -70,7 +93,7 @@ mState.framerate = 3;
 auto cb = [&](int64_t timestamp, uint8_t *data, uint32_t length, uint32_t offset) {
     ... // handle video frame data
 };
-mState.callback_data.video_cb = fun;
+mState.callback_data.video_cb = cb;
 
 MMAL_STATUS_T status;
 if ((status = init(&mState)) != MMAL_SUCCESS) {
