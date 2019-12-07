@@ -15,7 +15,7 @@
 #include <arpa/inet.h>
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
 #ifndef CAM_H
@@ -110,18 +110,20 @@ typedef struct param_float_rect_s {
     double h;
 } PARAM_FLOAT_RECT_T;
 
-typedef struct mmal_param_thumbnail_config_s
-{
+typedef struct mmal_param_thumbnail_config_s {
     int enable;
-    int width,height;
+    int width, height;
     int quality;
 } MMAL_PARAM_THUMBNAIL_CONFIG_T;
+
+typedef std::function<void(int64_t timestamp, uint8_t *data, uint32_t length, uint32_t offset)> VideoCallback;
+typedef std::function<void(uint8_t *data, uint32_t length)> StillCallback;
 
 /** Struct used to pass information in encoder port userdata to callback
  */
 typedef struct {
-    std::function<void(int64_t timestamp, uint8_t *data, uint32_t length, uint32_t offset)> video_cb;
-    std::function<void(uint8_t *data, uint32_t length)> still_cb;
+    VideoCallback video_cb;
+    StillCallback still_cb;
     FILE *file_handle;                   /// File handle to write buffer data to.
     CAM_STATE *pstate;              /// pointer to our state in case required in callback
     VCOS_SEMAPHORE_T complete_semaphore; /// semaphore which is posted when we reach end of frame (indicates end of capture or fault)
@@ -134,17 +136,12 @@ typedef struct {
     int header_wptr;
     int flush_buffers;
     // temporary image data
-    uint8_t *_image_data;
-    long _image_data_length;
-    // final image data
-    int capture_in_progress;
     uint8_t *image_data;
     long image_data_length;
 } PORT_USERDATA;
 
 /// Frame advance method
-enum
-{
+enum {
     FRAME_NEXT_SINGLE,
     FRAME_NEXT_TIMELAPSE,
     FRAME_NEXT_KEYPRESS,
@@ -187,8 +184,7 @@ typedef struct cam_parameters_s {
     int settings;
 } CAM_PARAMETERS;
 
-typedef struct
-{
+typedef struct {
     int wantPreview;                       /// Display a preview
     int wantFullScreenPreview;             /// 0 is use previewRect, non-zero to use full screen
     int opacity;                           /// Opacity of window - 0 = transparent, 255 = opaque
@@ -201,117 +197,78 @@ typedef struct
 /** Structure containing all state information for the current run
  */
 struct CAM_STATE_S {
-    pthread_mutex_t mutex;
-    CAM_COMMONSETTINGS_PARAMETERS common_settings;     /// Common settings
-    int timeout;                        /// Time taken before frame is grabbed and app then shuts down. Units are milliseconds
-    MMAL_FOURCC_T encoding;             /// Requested codec video encoding (MJPEG or H264)
-    int bitrate;                        /// Requested bitrate
-    uint32_t framerate;                      /// Requested frame rate (fps)
-    uint32_t intraperiod;                    /// Intra-refresh period (key frame rate)
-    uint32_t quantisationParameter;          /// Quantisation parameter - quality. Set bitrate 0 and set this for variable bitrate
-    int bInlineHeaders;                  /// Insert inline headers to stream (SPS, PPS)
-    int immutableInput;                 /// Flag to specify whether encoder works in place or creates a new buffer. Result is preview can display either
+    CAM_COMMONSETTINGS_PARAMETERS common_settings{};     /// Common settings
+    int timeout{};                        /// Time taken before frame is grabbed and app then shuts down. Units are milliseconds
+    MMAL_FOURCC_T encoding{};             /// Requested codec video encoding (MJPEG or H264)
+    int bitrate{};                        /// Requested bitrate
+    uint32_t framerate{};                      /// Requested frame rate (fps)
+    uint32_t intraperiod{};                    /// Intra-refresh period (key frame rate)
+    uint32_t quantisationParameter{};          /// Quantisation parameter - quality. Set bitrate 0 and set this for variable bitrate
+    int bInlineHeaders{};                  /// Insert inline headers to stream (SPS, PPS)
+    int immutableInput{};                 /// Flag to specify whether encoder works in place or creates a new buffer. Result is preview can display either
     /// the camera output or the encoder output (with compression artifacts)
-    uint32_t profile;                        /// H264 profile to use for encoding
-    uint32_t level;                          /// H264 level to use for encoding
-    int waitMethod;                     /// Method for switching between pause and capture
+    uint32_t profile{};                        /// H264 profile to use for encoding
+    uint32_t level{};                          /// H264 level to use for encoding
+    int waitMethod{};                     /// Method for switching between pause and capture
 
-    int onTime;                         /// In timed cycle mode, the amount of time the capture is on per cycle
-    int offTime;                        /// In timed cycle mode, the amount of time the capture is off per cycle
+    int onTime{};                         /// In timed cycle mode, the amount of time the capture is on per cycle
+    int offTime{};                        /// In timed cycle mode, the amount of time the capture is off per cycle
 
-    int segmentSize;                    /// Segment mode In timed cycle mode, the amount of time the capture is off per cycle
-    int segmentWrap;                    /// Point at which to wrap segment counter
-    int segmentNumber;                  /// Current segment counter
-    int splitNow;                       /// Split at next possible i-frame if set to 1.
-    int splitWait;                      /// Switch if user wants splited files
+    int segmentSize{};                    /// Segment mode In timed cycle mode, the amount of time the capture is off per cycle
+    int segmentWrap{};                    /// Point at which to wrap segment counter
+    int segmentNumber{};                  /// Current segment counter
+    int splitNow{};                       /// Split at next possible i-frame if set to 1.
+    int splitWait{};                      /// Switch if user wants splited files
 
-    CAM_PREVIEW_PARAMETERS preview_parameters; /// Camera setup parameters
-    CAM_PARAMETERS camera_parameters; /// Camera setup parameters
+    CAM_PREVIEW_PARAMETERS preview_parameters{}; /// Camera setup parameters
+    CAM_PARAMETERS camera_parameters{}; /// Camera setup parameters
 
-    MMAL_COMPONENT_T *camera_component;    /// Pointer to the camera component
-    MMAL_COMPONENT_T *video_encoder_component;   /// Pointer to the encoder component
-    MMAL_CONNECTION_T *video_encoder_connection; /// Pointer to the connection from camera to encoder
-    MMAL_CONNECTION_T *preview_connection; /// Pointer to the connection from camera to preview
+    MMAL_COMPONENT_T *camera_component{};    /// Pointer to the camera component
+    MMAL_COMPONENT_T *video_encoder_component{};   /// Pointer to the encoder component
+    MMAL_CONNECTION_T *video_encoder_connection{}; /// Pointer to the connection from camera to encoder
+    MMAL_CONNECTION_T *preview_connection{}; /// Pointer to the connection from camera to preview
 
-    MMAL_PORT_T *camera_video_port;
-    MMAL_PORT_T *video_encoder_input_port;
-    MMAL_PORT_T *video_encoder_output_port;
+    MMAL_PORT_T *camera_video_port{};
+    MMAL_PORT_T *video_encoder_input_port{};
+    MMAL_PORT_T *video_encoder_output_port{};
 
-    MMAL_POOL_T *video_encoder_pool; /// Pointer to the pool of buffers used by encoder output port
+    MMAL_POOL_T *video_encoder_pool{}; /// Pointer to the pool of buffers used by encoder output port
 
     PORT_USERDATA callback_data;        /// Used to move data to the encoder callback
 
-    int bCapturing;                     /// State of capture/pause
+    int bCapturing{};                     /// State of capture/pause
 
-    int inlineMotionVectors;             /// Encoder outputs inline Motion Vectors
-    int intra_refresh_type;              /// What intra refresh type to use. -1 to not set.
-    int frame;
-    int64_t starttime;
-    int64_t lasttime;
+    int inlineMotionVectors{};             /// Encoder outputs inline Motion Vectors
+    int intra_refresh_type{};              /// What intra refresh type to use. -1 to not set.
+    int frame{};
+    int64_t starttime{};
+    int64_t lasttime{};
 
-    MMAL_BOOL_T addSPSTiming;
-    int slices;
+    MMAL_BOOL_T addSPSTiming{};
+    int slices{};
 
     //still
-    MMAL_COMPONENT_T *still_encoder_component;   /// Pointer to the encoder component
-    MMAL_CONNECTION_T *still_encoder_connection; /// Pointer to the connection from camera to encoder
+    MMAL_COMPONENT_T *still_encoder_component{};   /// Pointer to the encoder component
 
-    MMAL_PORT_T *camera_still_port;
-    MMAL_PORT_T *still_encoder_input_port;
-    MMAL_PORT_T *still_encoder_output_port;
+    MMAL_PORT_T *camera_still_port{};
+    MMAL_PORT_T *still_encoder_input_port{};
+    MMAL_PORT_T *still_encoder_output_port{};
 
-    int quality;                        /// JPEG quality setting (1-100)
-    int wantRAW;                        /// Flag for whether the JPEG metadata also contains the RAW bayer image
-    MMAL_PARAM_THUMBNAIL_CONFIG_T thumbnailConfig;
-    int timelapse;                      /// Delay between each picture in timelapse mode. If 0, disable timelapse
-    int fullResPreview;                 /// If set, the camera preview port runs at capture resolution. Reduces fps.
-    int frameNextMethod;                /// Which method to use to advance to next frame
-    int burstCaptureMode;               /// Enable burst mode
-    int timestamp;                      /// Use timestamp instead of frame#
-    int restart_interval;               /// JPEG restart interval. 0 for none.
+    int quality{};                        /// JPEG quality setting (1-100)
+    int wantRAW{};                        /// Flag for whether the JPEG metadata also contains the RAW bayer image
+    MMAL_PARAM_THUMBNAIL_CONFIG_T thumbnailConfig{};
+    int timelapse{};                      /// Delay between each picture in timelapse mode. If 0, disable timelapse
+    int fullResPreview{};                 /// If set, the camera preview port runs at capture resolution. Reduces fps.
+    int frameNextMethod{};                /// Which method to use to advance to next frame
+    int burstCaptureMode{};               /// Enable burst mode
+    int timestamp{};                      /// Use timestamp instead of frame#
+    int restart_interval{};               /// JPEG restart interval. 0 for none.
 
-    MMAL_COMPONENT_T *encoder_component;   /// Pointer to the encoder component
-    MMAL_COMPONENT_T *null_sink_component; /// Pointer to the null sink component
-    MMAL_CONNECTION_T *encoder_connection; /// Pointer to the connection from camera to encoder
+    MMAL_COMPONENT_T *encoder_component{};   /// Pointer to the encoder component
+    MMAL_CONNECTION_T *encoder_connection{}; /// Pointer to the connection from camera to encoder
 
-    MMAL_POOL_T *encoder_pool; /// Pointer to the pool of buffers used by encoder output port
+    MMAL_POOL_T *encoder_pool{}; /// Pointer to the pool of buffers used by encoder output port
 };
-
-typedef struct
-{
-    CAM_COMMONSETTINGS_PARAMETERS common_settings;     /// Common settings
-    int timeout;                        /// Time taken before frame is grabbed and app then shuts down. Units are milliseconds
-    int quality;                        /// JPEG quality setting (1-100)
-    int wantRAW;                        /// Flag for whether the JPEG metadata also contains the RAW bayer image
-    char *linkname;                     /// filename of output file
-    int frameStart;                     /// First number of frame output counter
-    MMAL_PARAM_THUMBNAIL_CONFIG_T thumbnailConfig;
-    int demoMode;                       /// Run app in demo mode
-    int demoInterval;                   /// Interval between camera settings changes
-    MMAL_FOURCC_T encoding;             /// Encoding to use for the output file.
-    const char *exifTags[32];           /// Array of pointers to tags supplied from the command line
-    int numExifTags;                    /// Number of supplied tags
-    int enableExifTags;                 /// Enable/Disable EXIF tags in output
-    int timelapse;                      /// Delay between each picture in timelapse mode. If 0, disable timelapse
-    int fullResPreview;                 /// If set, the camera preview port runs at capture resolution. Reduces fps.
-    int frameNextMethod;                /// Which method to use to advance to next frame
-    int useGL;                          /// Render preview using OpenGL
-    int glCapture;                      /// Save the GL frame-buffer instead of camera output
-    int burstCaptureMode;               /// Enable burst mode
-    int datetime;                       /// Use DateTime instead of frame#
-    int timestamp;                      /// Use timestamp instead of frame#
-    int restart_interval;               /// JPEG restart interval. 0 for none.
-
-    CAM_PARAMETERS camera_parameters; /// Camera setup parameters
-
-    MMAL_COMPONENT_T *camera_component;    /// Pointer to the camera component
-    MMAL_COMPONENT_T *encoder_component;   /// Pointer to the encoder component
-    MMAL_COMPONENT_T *null_sink_component; /// Pointer to the null sink component
-    MMAL_CONNECTION_T *encoder_connection; /// Pointer to the connection from camera to encoder
-
-    MMAL_POOL_T *encoder_pool; /// Pointer to the pool of buffers used by encoder output port
-
-} CAM_STILL_STATE;
 
 /// Capture/Pause switch method
 /// Simply capture for time specified
@@ -322,18 +279,6 @@ enum {
     WAIT_METHOD_SIGNAL,     /// Switch between capture and pause on signal
     WAIT_METHOD_FOREVER     /// Run/record forever
 };
-
-static struct {
-    const char *description;
-    int nextWaitMethod;
-} wait_method_description[] =
-        {
-                {"Simple capture",    WAIT_METHOD_NONE},
-                {"Capture forever",   WAIT_METHOD_FOREVER},
-                {"Cycle on time",     WAIT_METHOD_TIMED},
-                {"Cycle on keypress", WAIT_METHOD_KEYPRESS},
-                {"Cycle on signal",   WAIT_METHOD_SIGNAL},
-        };
 
 static VCHI_INSTANCE_T global_initialise_instance;
 static VCHI_CONNECTION_T *global_connection;
@@ -360,10 +305,6 @@ int set_awb_mode(MMAL_COMPONENT_T *camera, MMAL_PARAM_AWBMODE_T awb_mode);
 
 int set_awb_gains(MMAL_COMPONENT_T *camera, float r_gain, float b_gain);
 
-int set_imageFX(MMAL_COMPONENT_T *camera, MMAL_PARAM_IMAGEFX_T imageFX);
-
-int set_colourFX(MMAL_COMPONENT_T *camera, const MMAL_PARAM_COLOURFX_T *colourFX);
-
 int set_rotation(MMAL_COMPONENT_T *camera, int rotation);
 
 int set_flips(MMAL_COMPONENT_T *camera, int hflip, int vflip);
@@ -375,9 +316,6 @@ int set_shutter_speed(MMAL_COMPONENT_T *camera, int speed);
 int set_DRC(MMAL_COMPONENT_T *camera, MMAL_PARAMETER_DRC_STRENGTH_T strength);
 
 int set_stats_pass(MMAL_COMPONENT_T *camera, int stats_pass);
-
-int set_annotate(MMAL_COMPONENT_T *camera, int settings, const char *string, int text_size, int text_colour,
-                 int bg_colour, unsigned int justify, unsigned int x, unsigned int y);
 
 int set_gains(MMAL_COMPONENT_T *camera, float analog, float digital);
 
@@ -404,8 +342,6 @@ int set_metering_mode(MMAL_COMPONENT_T *camera, MMAL_PARAM_EXPOSUREMETERINGMODE_
 int set_video_stabilisation(MMAL_COMPONENT_T *camera, int vstabilisation);
 
 int set_exposure_compensation(MMAL_COMPONENT_T *camera, int exp_comp);
-
-int mmal_status_to_int(MMAL_STATUS_T status);
 
 MMAL_STATUS_T connect_ports(MMAL_PORT_T *output_port, MMAL_PORT_T *input_port, MMAL_CONNECTION_T **connection);
 
@@ -436,7 +372,7 @@ int default_still_state(CAM_STATE *state);
 
 MMAL_STATUS_T create_still_encoder_component(CAM_STATE *state);
 
-MMAL_STATUS_T capture_still(CAM_STATE *state, std::function<void(uint8_t *data, uint32_t length)>);
+MMAL_STATUS_T capture_still(CAM_STATE *state, StillCallback);
 
 int wait_for_next_frame(CAM_STATE *state, int *frame);
 
@@ -448,7 +384,7 @@ MMAL_STATUS_T preview_create(CAM_PREVIEW_PARAMETERS *state);
 
 void preview_destroy(CAM_PREVIEW_PARAMETERS *state);
 
-void destroy_still(CAM_STATE*);
+void destroy_still(CAM_STATE *);
 
 #endif //CAM_H
 
