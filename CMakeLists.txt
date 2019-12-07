@@ -9,5 +9,9 @@ include_directories(
         "../userland"
 )
 
+link_directories(
+        ../userland/build/lib
+)
+
 # the actual library
 add_library(cam cam.cc)
