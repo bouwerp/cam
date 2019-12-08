@@ -69,41 +69,41 @@ vchiq_arm
 pthread
 ```
 
+Using the camera as a video camera:
 ```cpp
-CAM_STATE mState{};
-uint mWidth;
-uint mHeight;
-uint mRotation;
+CAM_STATE state{};
+uint width;
+uint height;
+uint rotation;
 std::map<std::string, VideoCallback> cbs;
 
 default_state(&mState);
 
-mState.waitMethod = WAIT_METHOD_FOREVER;
-mState.timeout = 1000;
-mState.encoding = MMAL_ENCODING_MJPEG;
-mState.inlineMotionVectors = 0;
-mState.callback_data.pstate = &mState;
-mState.callback_data.abort = 0;
-mState.quality = 50;
-mState.common_settings.width = w;
-mState.common_settings.height = h;
-mState.camera_parameters.rotation = r;
-mState.framerate = 3;
+state.waitMethod = WAIT_METHOD_FOREVER;
+state.timeout = 1000;
+state.encoding = MMAL_ENCODING_MJPEG;
+state.inlineMotionVectors = 0;
+state.callback_data.pstate = &state;
+state.callback_data.abort = 0;
+state.quality = 50;
+state.common_settings.width = 1024;
+state.common_settings.height = 768;
+state.camera_parameters.rotation = 90;
+state.framerate = 3;
 
 auto cb = [&](int64_t timestamp, uint8_t *data, uint32_t length, uint32_t offset) {
     ... // handle video frame data
 };
-mState.callback_data.video_cb = cb;
+state.callback_data.video_cb = cb;
 
 MMAL_STATUS_T status;
-if ((status = init(&mState)) != MMAL_SUCCESS) {
+if ((status = init(&state)) != MMAL_SUCCESS) {
     cerr << "could not initialise video camera: " << mmal_status_to_string(status) << endl;
     return;
 }
 
 // blocking capture (practically this should spawned in a thread)
-MMAL_STATUS_T status = capture(&mState);
-if (status != MMAL_SUCCESS) {
+if ((status = capture(&state)) != MMAL_SUCCESS) {
     cerr << "error capturing video: " << mmal_status_to_string(status) << endl;
     return;
 }
